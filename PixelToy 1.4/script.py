@@ -13,19 +13,19 @@ mousedown = False
 
 projSpeed = 6
 projSize = 3
-lol = True
+firstMousedown = True
 proj = []
 
 class Projectile:
 	def __init__(self):
 		self.updatePos = False
-	def update(self,size,boolean,x,y,tx,ty):
+	def update(self,size,notIdle,x,y,tx,ty):
 		self.x = x
 		self.y = y
 		self.a = ty-self.y
 		self.b = tx-self.x
 		self.d = math.hypot(self.b,self.a)
-		self.updatePos = boolean
+		self.updatePos = notIdle
 		self.size = size
 	def draw(self):
 		if self.updatePos:
@@ -57,9 +57,9 @@ while True:
 
 	if isMouseDown():
 		mousedown = True
-		if lol:
+		if firstMousedown:
 			proj.append(Projectile())
-			lol = False
+			firstMousedown = False
 		if projSize <= 6:
 			projSize += 0.1
 		proj[-1].update(projSize,False,manx,many+(msize/2)+projSize,mousex,mousey)
@@ -70,7 +70,7 @@ while True:
 		proj[-1].update(projSize,True,manx,many+(msize/2),mousex,mousey)
 		projSize = 3
 		mousedown = False
-		lol = True
+		firstMousedown = True
 
 	for projectile in proj:
 		projectile.draw()
