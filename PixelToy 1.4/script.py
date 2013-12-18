@@ -1,4 +1,10 @@
 import math
+marblefloor = loadImage('res/marblefloor.png')
+backgroundy = 384
+backgroundx = 384
+isbackgrounddrawn = False
+isoutofscreen = False
+
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
 msize = 32
@@ -40,6 +46,10 @@ class Projectile:
 		
 while True:
 	newFrame()
+	if isbackgrounddrawn == False:
+		for i in range(0,6):
+			for j in range(0,6):
+				drawImage(marblefloor, j*backgroundx, i*backgroundy	,384, 384)
 	mousex = _mouseX
 	mousey = _mouseY
 	if isKeyDown('w'):
@@ -54,7 +64,7 @@ while True:
 	speedy *= 0.9
 	many += speedy
 	manx += speedx
-
+	
 	if isMouseDown():
 		mousedown = True
 		if firstMousedown:
@@ -75,4 +85,12 @@ while True:
 	for projectile in proj:
 		projectile.draw()
 	
+	if not manx>_screenWidth or many>_screenHeight or manx>_screenWidth and many>_screenHeight:
+		isoutofscreen = False
 	
+	if manx>_screenWidth or many>_screenHeight or manx>_screenWidth and many>_screenHeight:
+		isoutofscreen = True
+		
+	if isoutofscreen == True:
+		backgroundx-=_screenWidth
+		manx-=_screenWidth
