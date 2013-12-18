@@ -1,4 +1,10 @@
 import math
+marblefloor = loadImage('res/marblefloor.png')
+backgroundy = 384
+backgroundx = 384
+isbackgrounddrawn = False
+isoutofscreen = False
+
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
 
@@ -27,7 +33,7 @@ class Projectile:
 		if self.x < -self.size or self.x > _screenWidth+self.size or self.y < -self.size or self.y > _screenHeight+self.size:
 			return True
 		else:
-			rdaeturn False
+			return False
 
 class Player:
 	def __init__(self,x,y):
@@ -106,4 +112,3 @@ while True:
 	newFrame()
 	lvl1.mainLoop()
 		
-	
