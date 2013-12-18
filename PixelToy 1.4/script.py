@@ -117,6 +117,7 @@ class Player:
 			drawImage(man2,self.x,self.y,self.size,self.size)
 		else:
 			drawImage(man1,self.x,self.y,self.size,self.size)
+
 	
 		
 class Level:
@@ -167,4 +168,4 @@ while True:
 	newFrame()
 	currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 	currentLVL["LVL"].mainLoop()
-		
+	lvl1.mainLoop()
