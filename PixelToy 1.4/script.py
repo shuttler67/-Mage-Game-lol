@@ -71,6 +71,7 @@ class Player:
 		else:
 			drawImage(man1,self.x-(self.size/2),self.y-(self.size/2),self.size,self.size)
 			
+
 man = Player()
 firstMousedown = True
 while True:
@@ -78,7 +79,11 @@ while True:
 	if isbackgrounddrawn == False:
 		for i in range(0,6):
 			for j in range(0,6):
-				drawImage(marblefloor, j*backgroundx, i*backgroundy	,384, 384)
+				bgx = j*backgroundx
+				bgy = i*backgroundy
+				drawImage(marblefloor, bgx, bgy	,384, 384)
+				bgx = j*backgroundx
+				bgy = i*backgroundy
 	mousex = _mouseX
 	mousey = _mouseY
 	if isKeyDown('w'):
