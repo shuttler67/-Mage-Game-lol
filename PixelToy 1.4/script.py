@@ -2,10 +2,7 @@ import math
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
 
-mousedown = False
 
-projSize = 3
-proj = []
 
 class Projectile:
 	def __init__(self):
@@ -30,12 +27,12 @@ class Projectile:
 		if self.x < -self.size or self.x > _screenWidth+self.size or self.y < -self.size or self.y > _screenHeight+self.size:
 			return True
 		else:
-			return False
+			rdaeturn False
 
 class Player:
-	def __init__(self):
-		self.x = 32
-		self.y = 32
+	def __init__(self,x,y):
+		self.x = x
+		self.y = y
 		self.speedx = 0
 		self.speedy = 0
 		self.size = 64
@@ -53,44 +50,60 @@ class Player:
 		self.speedy *= 0.9
 		self.y += self.speedy
 		self.x += self.speedx
-	def powerup(self,projSize,mousex,mousey):
-		proj[-1].update(projSize,False,self.x,self.y+(self.size/2)+projSize,mousex,mousey)
+	def powerup(self,projSize,mousex,mousey,proj):
+		proj[-1].update(projSize,False,self.x,self.y+self.size/2+projSize/2,mousex,mousey)
 		self.inAttack = True
-	def attack(self,projSize,mousex,mousey):
-		proj[-1].update(projSize,True,self.x,self.y+(self.size/2),mousex,mousey)
+	def attack(self,projSize,mousex,mousey,proj):
+		proj[-1].update(projSize,True,self.x,self.y+self.size/2+projSize/2,mousex,mousey)
 		self.inAttack = False
 	def draw(self):
 		if self.inAttack:
-			drawImage(man2,self.x-(self.size/2),self.y-(self.size/2),self.size,self.size)
+			drawImage(man2,self.x,self.y,self.size,self.size)
 		else:
-			drawImage(man1,self.x-(self.size/2),self.y-(self.size/2),self.size,self.size)
-			
-man = Player()
-firstMousedown = True
+			drawImage(man1,self.x,self.y,self.size,self.size)
+	
+#class Wall:
+#	def __init__(self):
+		
+class Level:
+	def __init__(self,mx,my,walls,enemies):
+		self.man = Player(mx,my)
+		self.walls = walls
+		self.enemies = enemies
+		self.firstMousedown = True
+		self.mousedown = False
+		self.projSize = 3
+		self.proj = []
+	def mainLoop(self):
+		self.man.move()
+		self.man.draw()
+		if isLeftMouseDown():
+			self.mousedown = True
+			if self.firstMousedown:
+				self.proj.append(Projectile())
+				self.firstMousedown = False
+			if self.projSize <= 6:
+				self.projSize += 0.1
+			self.man.powerup(self.projSize,_mouseX,_mouseY,self.proj)
+		if not isLeftMouseDown() and self.mousedown == True:
+			self.man.attack(self.projSize,_mouseX,_mouseY,self.proj)
+			self.projSize = 3
+			self.mousedown = False
+			self.firstMousedown = True
+
+		for j in range(len(self.proj), 0, -1):
+			i = j-1
+			self.proj[i].move()
+			self.proj[i].draw()
+			if self.proj[i].checkIfOut():
+				del self.proj[i]
+
+walls1 = [0,1]
+enemies1 = [0,1]
+lvl1 = Level(_screenHeight/2,32,walls1,enemies1)
+
 while True:
 	newFrame()
-	man.move()
-	man.draw()
-
-	if isMouseDown():
-		mousedown = True
-		if firstMousedown:
-			proj.append(Projectile())
-			firstMousedown = False
-		if projSize <= 6:
-			projSize += 0.1
-		man.powerup(projSize,_mouseX,_mouseY)
-	if not isMouseDown() and mousedown == True:
-		man.attack(projSize,_mouseX,_mouseY)
-		projSize = 3
-		mousedown = False
-		firstMousedown = True
-
-	for j in range(len(proj), 0, -1):
-		i = j-1
-		proj[i].move()
-		proj[i].draw()
-		if proj[i].checkIfOut():
-			del proj[i]
+	lvl1.mainLoop()
 		
 	
