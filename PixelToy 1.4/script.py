@@ -7,43 +7,72 @@ isoutofscreen = False
 
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
-msize = 32
-
-manx = 32
-many = 32
-
-speedx = 0
-speedy = 0
 
 mousedown = False
 
-projSpeed = 6
 projSize = 3
-firstMousedown = True
 proj = []
 
 class Projectile:
 	def __init__(self):
-		self.updatePos = False
+		self.notIdle = False
+		self.projSpeed = 6
 	def update(self,size,notIdle,x,y,tx,ty):
 		self.x = x
 		self.y = y
 		self.a = ty-self.y
 		self.b = tx-self.x
 		self.d = math.hypot(self.b,self.a)
-		self.updatePos = notIdle
+		self.notIdle = notIdle
 		self.size = size
+	def move(self):
+		if self.notIdle:
+			self.x += self.b/self.d*self.projSpeed
+			self.y += self.a/self.d*self.projSpeed
 	def draw(self):
-		if self.updatePos:
-			self.x += self.b/self.d*projSpeed
-			self.y += self.a/self.d*projSpeed
+		useColour(255,0,0,100)
 		drawCircle(self.x,self.y,self.size)
 	def checkIfOut(self):
-		if self.x < 0 or self.x > _screenWidth or self.y < 0 or self.y > _screenHeight:
+		if self.x < -self.size or self.x > _screenWidth+self.size or self.y < -self.size or self.y > _screenHeight+self.size:
 			return True
 		else:
 			return False
-		
+
+class Player:
+	def __init__(self):
+		self.x = 32
+		self.y = 32
+		self.speedx = 0
+		self.speedy = 0
+		self.size = 64
+		self.inAttack = False
+	def move(self):
+		if isKeyDown('w'):
+			self.speedy += 0.3
+		if isKeyDown('s'):
+			self.speedy -= 0.3
+		if isKeyDown('a'):
+			self.speedx -= 0.3
+		if isKeyDown('d'):
+			self.speedx += 0.3
+		self.speedx *= 0.9
+		self.speedy *= 0.9
+		self.y += self.speedy
+		self.x += self.speedx
+	def powerup(self,projSize,mousex,mousey):
+		proj[-1].update(projSize,False,self.x,self.y+(self.size/2)+projSize,mousex,mousey)
+		self.inAttack = True
+	def attack(self,projSize,mousex,mousey):
+		proj[-1].update(projSize,True,self.x,self.y+(self.size/2),mousex,mousey)
+		self.inAttack = False
+	def draw(self):
+		if self.inAttack:
+			drawImage(man2,self.x-(self.size/2),self.y-(self.size/2),self.size,self.size)
+		else:
+			drawImage(man1,self.x-(self.size/2),self.y-(self.size/2),self.size,self.size)
+			
+man = Player()
+firstMousedown = True
 while True:
 	newFrame()
 	if isbackgrounddrawn == False:
@@ -65,6 +94,9 @@ while True:
 	many += speedy
 	manx += speedx
 	
+	man.move()
+	man.draw()
+
 	if isMouseDown():
 		mousedown = True
 		if firstMousedown:
@@ -72,25 +104,18 @@ while True:
 			firstMousedown = False
 		if projSize <= 6:
 			projSize += 0.1
-		proj[-1].update(projSize,False,manx,many+(msize/2)+projSize,mousex,mousey)
-		drawImage(man2,manx-(msize/2),many-(msize/2),msize,msize)
-	else:
-		drawImage(man1,manx-(msize/2),many-(msize/2),msize,msize)
+		man.powerup(projSize,_mouseX,_mouseY)
 	if not isMouseDown() and mousedown == True:
-		proj[-1].update(projSize,True,manx,many+(msize/2),mousex,mousey)
+		man.attack(projSize,_mouseX,_mouseY)
 		projSize = 3
 		mousedown = False
 		firstMousedown = True
-
 	for projectile in proj:
 		projectile.draw()
 	
-	if not manx>_screenWidth or many>_screenHeight or manx>_screenWidth and many>_screenHeight:
-		isoutofscreen = False
-	
-	if manx>_screenWidth or many>_screenHeight or manx>_screenWidth and many>_screenHeight:
-		isoutofscreen = True
-		
-	if isoutofscreen == True:
-		backgroundx-=_screenWidth
-		manx-=_screenWidth
+	for j in range(len(proj), 0, -1):
+		i = j-1
+		proj[i].move()
+		proj[i].draw()
+		if proj[i].checkIfOut():
+			del proj[i]
