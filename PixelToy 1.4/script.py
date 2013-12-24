@@ -13,6 +13,9 @@ LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
 
+MAXSPEED = 2.7
+
+
 class Rect:
 	def __init__(self,x,y,w,h):
 		self.x1 = x
@@ -21,7 +24,7 @@ class Rect:
 		self.y2 = y+h
 		self.width = w
 		self.height = h
-	def isCollide(self,rect2):
+	def rectCollide(self,rect2):
 		if rect2.x1>self.x1 and rect2.x1<self.x2 and rect2.y1>self.y1 and rect2.y1<self.y2:
 			return True
 		if rect2.x2>self.x1 and rect2.x2<self.x2 and rect2.y1>self.y1 and rect2.y1<self.y2:
@@ -39,17 +42,32 @@ class Rect:
 			return True
 		if self.x2>rect2.x1 and self.x2<rect2.x2 and self.y2>rect2.y1 and self.y2<rect2.y2:
 			return True
-			
 		return False
 
 class Wall:
 	def __init__(self,rect):
 		self.rect = rect
-	def playerCollide(self,playerRect):
-		if playerRect.isCollide(self.rect):
-			return True
+	def playerCollide(self,playerx,playery,playerSize):
+		canNotMoves = []
+		movedx = playerx
+		movedy = playery
+		playerDirections = [RIGHT,LEFT,UP,DOWN]
+		for direction in playerDirections:
+			if direction == RIGHT:
+				movedx = playerx + MAXSPEED
+			if direction == LEFT:
+				movedx = playerx - MAXSPEED
+			if direction == UP:
+				movedy = playery + MAXSPEED
+			if direction == DOWN:
+				movedy = playery - MAXSPEED
+
+			if self.rect.rectCollide(Rect(movedx-(playerSize/2),movedy-(playerSize/2),playerSize,playerSize)):
+				canNotMoves.append(direction)
+			movedx = playerx
+			movedy = playery
+		return canNotMoves
 	def draw(self):
-		print "drawn"
 		useColour(255,0,0,255)
 		drawRectangle(self.rect.x1,self.rect.y1,self.rect.width,self.rect.height)
 
@@ -87,25 +105,40 @@ class Player:
 		self.speedx = 0
 		self.speedy = 0
 		self.inAttack = False
-		self.direction = RIGHT
-	def move(self,canMove):
+		self.directions = []
+	def move(self,canNotMoves):
+		self.directions = []
 		if isKeyDown('w'):
 			self.speedy += 0.3
-			self.direction = UP
 		if isKeyDown('s'):
 			self.speedy -= 0.3
-			self.direction = DOWN
 		if isKeyDown('a'):
 			self.speedx -= 0.3
-			self.direction = LEFT
 		if isKeyDown('d'):
 			self.speedx += 0.3
-			self.direction = RIGHT
 		self.speedx *= 0.9
 		self.speedy *= 0.9
-		if canMove:
-			self.y += self.speedy
-			self.x += self.speedx
+		if self.speedx > 0:
+			self.directions.append(RIGHT)
+		if self.speedx < 0:
+			self.directions.append(LEFT)
+		if self.speedy > 0:
+			self.directions.append(UP)
+		if self.speedy < 0:
+			self.directions.append(DOWN)
+		print canNotMoves
+		#print directions
+
+		for direction in self.directions:
+			for canNotMove in canNotMoves:
+				if canNotMove == direction:
+					if canNotMove == UP or canNotMove == DOWN: 
+						self.speedy = 0.0
+					if canNotMove == RIGHT or canNotMove == LEFT:
+						self.speedx = 0.0
+					
+		self.x += self.speedx
+		self.y += self.speedy
 	def powerup(self,projSize,mousex,mousey,proj):
 		proj[-1].update(projSize,False,self.x,self.y+self.size/2+projSize/2,mousex,mousey)
 		self.inAttack = True
@@ -131,7 +164,7 @@ class Level:
 		self.walls = walls
 		self.enemies = enemies
 	def mainLoop(self):
-		canMove = True
+		canNotMoves = []
 		if isLeftMouseDown():
 			self.mousedown = True
 			if self.firstMousedown:
@@ -148,9 +181,8 @@ class Level:
 		
 		for wall in self.walls:
 			wall.draw()
-			if wall.playerCollide(Rect(self.man.x+self.man.speedx-self.man.size/2,self.man.y+self.man.speedy-self.man.size/2,self.man.size,self.man.size)):
-				canMove = False
-				
+			canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
+
 		for j in range(len(self.proj), 0, -1):
 			i = j-1
 			self.proj[i].move()
@@ -158,14 +190,12 @@ class Level:
 			if self.proj[i].checkIfOut():
 				del self.proj[i]
 		
-		self.man.move(canMove)
+		self.man.move(canNotMoves)
 		self.man.draw()
 
 LVL1= {"LVL":Level(32,_screenHeight/2),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
 currentLVL = LVL1
-
+currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 while True:
 	newFrame()
-	currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 	currentLVL["LVL"].mainLoop()
-	lvl1.mainLoop()
