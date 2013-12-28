@@ -128,6 +128,7 @@ class Player:
 		self.rect = Rect(x,y,self.size,self.size)
 		self.speedx = 0
 		self.speedy = 0
+		self.acceleration = 0.3
 		self.inAttack = False
 		self.projSize = 3
 		self.proj = []
@@ -144,15 +145,19 @@ class Player:
 		self.inAttack = False
 	def move(self,canNotMoves,pressedKeys):
 		self.directions = []
+		if self.inAttack:
+			self.acceleration = 0.1
+		else:
+			self.acceleration = 0.3
 		for key in pressedKeys:
 			if key == 'w':
-				self.speedy += 0.3
+				self.speedy += self.acceleration
 			if key == 'a':
-				self.speedx -= 0.3
+				self.speedx -= self.acceleration
 			if key == 's':
-				self.speedy -= 0.3
+				self.speedy -= self.acceleration
 			if key == 'd':
-				self.speedx += 0.3
+				self.speedx += self.acceleration
 		self.speedx *= 0.9
 		self.speedy *= 0.9
 		if self.speedx > 0:
@@ -187,13 +192,11 @@ class Player:
 		else:
 			drawImage(man1,self.x,self.y,self.size,self.size)
 
-	
-		
 class Level:
-	def __init__(self,mx,my,buttons):
+	def __init__(self,player,buttons):
 		self.hasMan = False
-		if not mx == NIL:
-			self.man = Player(mx,my)
+		if not player == NIL:
+			self.man = player
 			self.hasMan = True
 		self.buttons = buttons
 		self.mousedown = False
@@ -230,7 +233,7 @@ class Level:
 			self.man.move(canNotMoves,self.pressedKeys)
 			self.man.draw() 
 
-LVL1= {"LVL":Level(50,_screenHeight/2,[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
+LVL1= {"LVL":Level(Player(50,_screenHeight/2,[1,2])),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
 currentLVL = LVL1
 currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 while True:
