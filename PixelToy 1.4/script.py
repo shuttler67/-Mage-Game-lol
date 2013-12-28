@@ -17,7 +17,7 @@ NIL   = "nil"
 MAXSPEED = 2.7
 
 allKeysUsed = ('w','a','s','d')
-
+print "startup"
 RED = "red"
 GREEN = "green"
 class Rect:
