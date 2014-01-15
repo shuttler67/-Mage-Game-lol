@@ -1,4 +1,5 @@
 import math
+
 marblefloor = loadImage('res/marblefloor.png')
 backgroundy = 384
 backgroundx = 384
@@ -13,9 +14,8 @@ DOWN  = "down"
 NIL   = "nil"
 
 MAXSPEED = 2.7
-
+#yolo
 allKeysUsed = ('w','a','s','d')
-print "startup"
 RED = "red"
 GREEN = "green"
 
@@ -46,7 +46,7 @@ class Rect:
 		if self.x2>rect2.x1 and self.x2<rect2.x2 and self.y2>rect2.y1 and self.y2<rect2.y2:
 			return True
 		return False
-
+#What does this even do?
 class Button:
 	def __init__(self,rect,text,function):
 		self.rect = rect
@@ -66,7 +66,7 @@ class Button:
 			useColour(255,0,0,255)
 		elif self.colour == GREEN:
 			drawRectangle(self.rect.x1,self.rect.y1,self.rect.width,self.rect.height)
-		
+#The walls
 class Wall:
 	def __init__(self,rect):
 		self.rect = rect
@@ -90,14 +90,14 @@ class Wall:
 			movedx = playerx
 			movedy = playery
 		return canNotMoves
-	def draw(self):
+	def draw(self,camerax,cameray):
 		useColour(255,0,0,255)
-		drawRectangle(self.rect.x1,self.rect.y1,self.rect.width,self.rect.height)
-
+		drawRectangle(self.rect.x1-camerax,self.rect.y1-cameray,self.rect.width,self.rect.height)
+#Project Ile
 class Projectile:
 	def __init__(self):
 		self.notIdle = False
-		self.projSpeed = 6
+		self.projSpeed = 4
 	def update(self,size,notIdle,x,y,tx,ty):
 		self.x = x
 		self.y = y
@@ -110,15 +110,20 @@ class Projectile:
 		if self.notIdle:
 			self.x += self.b/self.d*self.projSpeed
 			self.y += self.a/self.d*self.projSpeed
-	def draw(self):
+	def draw(self,camerax,cameray):
 		useColour(255,0,0,100)
-		drawCircle(self.x,self.y,self.size)
-	def checkIfOut(self):
-		if self.x < -self.size or self.x > _screenWidth+self.size or self.y < -self.size or self.y > _screenHeight+self.size:
+		drawCircle(self.x-camerax,self.y-cameray,self.size)
+	def checkIfOut(self,camerax,cameray):
+		if self.x-camerax < -self.size or self.x-camerax > _screenWidth+self.size or self.y-cameray < -self.size or self.y-cameray > _screenHeight+self.size and self.notIdle:
 			return True
 		else:
 			return False
-
+	def checkIfCollide(self,rect):
+		if rect.rectCollide(Rect(self.x,self.y,0,0)) and self.notIdle:
+			return True
+		else:
+			return False
+#PLAY WITH MEEEEE
 class Player:
 	def __init__(self,x,y):
 		self.x = x
@@ -131,18 +136,18 @@ class Player:
 		self.inAttack = False
 		self.projSize = 3
 		self.proj = []
-	def powerup(self,mousex,mousey,firstMousedown):
+	def powerup(self,mousex,mousey,firstMousedown,camerax,cameray):
 		if firstMousedown:
 			self.proj.append(Projectile())
 		if self.projSize <= 6:
 			self.projSize += 0.1
-		self.proj[-1].update(self.projSize,False,self.x,self.y+self.size/2+self.projSize/2,mousex,mousey)
+		self.proj[-1].update(self.projSize,False,self.x,self.y+self.size/2+self.projSize/2,mousex+camerax,mousey+cameray)
 		self.inAttack = True
-	def attack(self,mousex,mousey):
-		self.proj[-1].update(self.projSize,True,self.x,self.y+self.size/2+self.projSize/2,mousex,mousey)
+	def attack(self,mousex,mousey,camerax,cameray):
+		self.proj[-1].update(self.projSize,True,self.x,self.y+self.size/2+self.projSize/2,mousex+camerax,mousey+cameray)
 		self.projSize = 3
 		self.inAttack = False
-	def move(self,canNotMoves,pressedKeys):
+	def move(self,canNotMoves,pressedKeys,camerax,cameray):
 		self.directions = []
 		if self.inAttack:
 			self.acceleration = 0.1
@@ -179,18 +184,13 @@ class Player:
 		self.x += self.speedx
 		self.y += self.speedy
 
-		for j in range(len(self.proj), 0, -1):
-			i = j-1
-			self.proj[i].move()
-			self.proj[i].draw()
-			if self.proj[i].checkIfOut():
-				del self.proj[i]
-	def draw(self):
+		
+	def draw(self,camerax,cameray):
 		if self.inAttack:
-			drawImage(man2,self.x,self.y,self.size,self.size)
+			drawImage(man2,self.x-camerax,self.y-cameray,self.size,self.size)
 		else:
-			drawImage(man1,self.x,self.y,self.size,self.size)
-
+			drawImage(man1,self.x-camerax,self.y-cameray,self.size,self.size)
+#Level Up!
 class Level:
 	def __init__(self,player,buttons):
 		self.hasMan = False
@@ -200,6 +200,12 @@ class Level:
 		self.buttons = buttons
 		self.mousedown = False
 		self.pressedkeys = []
+		marblefloor = loadImage('res/marblefloor.png')
+		self.camerax=0
+		self.cameray=0
+		self.screenspeed=1
+		self.cameraslack=250
+		self.cameraslacky=200
 	def updateObstacles(self,walls,enemies):
 		self.walls = walls
 		self.enemies = enemies
@@ -208,6 +214,23 @@ class Level:
 		self.pressedKeys = []
 		firstMousedown = False
 		firstMouseup = False
+		
+		if self.man.x-self.camerax>(_screenWidth-self.cameraslack):
+			self.camerax+=self.man.speedx
+
+			
+		if self.man.y-self.cameray>(_screenHeight-self.cameraslacky):
+			self.cameray+=self.man.speedy		
+				
+		if self.man.x-self.camerax<self.cameraslack:
+			self.camerax+=self.man.speedx
+		
+			
+		if self.man.y-self.cameray<self.cameraslacky:
+			self.cameray+=self.man.speedy
+		
+		print self.camerax, self.cameray
+		
 		if isLeftMouseDown() and self.mousedown == False:
 			firstMousedown = True
 			self.mousedown = True
@@ -218,21 +241,34 @@ class Level:
 		for key in allKeysUsed:
 			if isKeyDown(key):
 				self.pressedKeys.append(key)
-			
-		for wall in self.walls:
-			wall.draw()
-			if self.hasMan:
-				canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
-
+		
+		
+		
+		for i in range(0,9):
+			for j in range(0,9):
+				drawImage(marblefloor, (j*backgroundx)-self.camerax, (i*backgroundy)-self.cameray, 384,384)
+				
 		if self.hasMan:
+			for wall in self.walls:
+				canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
+				for j in range(len(self.man.proj), 0, -1):
+					i = j-1
+					projectile = self.man.proj[i]
+					projectile.move()
+					projectile.draw(self.camerax,self.cameray)
+					if projectile.checkIfOut(self.camerax,self.cameray) or projectile.checkIfCollide(wall.rect):
+						del self.man.proj[i]
 			if self.mousedown:
-				self.man.powerup(_mouseX,_mouseY,firstMousedown)
+				self.man.powerup(_mouseX,_mouseY,firstMousedown,self.camerax, self.cameray)
 			if firstMouseup:
-				self.man.attack(_mouseX,_mouseY)
-			self.man.move(canNotMoves,self.pressedKeys)
-			self.man.draw() 
+				self.man.attack(_mouseX,_mouseY,self.camerax, self.cameray)
+			self.man.move(canNotMoves,self.pressedKeys,self.camerax,self.cameray)
+			self.man.draw(self.camerax, self.cameray) 
+		
+		for wall in self.walls:
+			wall.draw(self.camerax, self.cameray)
 
-LVL1= {"LVL":Level(Player(50,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
+LVL1= {"LVL":Level(Player(_screenWidth/2,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
 currentLVL = LVL1
 currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 while True:
