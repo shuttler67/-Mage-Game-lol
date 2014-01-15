@@ -2,8 +2,6 @@ import math
 marblefloor = loadImage('res/marblefloor.png')
 backgroundy = 384
 backgroundx = 384
-isbackgrounddrawn = False
-isoutofscreen = False
 
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
@@ -20,6 +18,7 @@ allKeysUsed = ('w','a','s','d')
 print "startup"
 RED = "red"
 GREEN = "green"
+
 class Rect:
 	def __init__(self,x,y,w,h):
 		self.x1 = x
@@ -233,7 +232,7 @@ class Level:
 			self.man.move(canNotMoves,self.pressedKeys)
 			self.man.draw() 
 
-LVL1= {"LVL":Level(Player(50,_screenHeight/2,[1,2])),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
+LVL1= {"LVL":Level(Player(50,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
 currentLVL = LVL1
 currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 while True:
