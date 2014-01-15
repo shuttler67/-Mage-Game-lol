@@ -2,8 +2,8 @@ import math
 marblefloor = loadImage('res/marblefloor.png')
 backgroundy = 384
 backgroundx = 384
-isbackgrounddrawn = False
-isoutofscreen = False
+
+
 
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
@@ -81,7 +81,33 @@ class Level:
 		self.mousedown = False
 		self.projSize = 3
 		self.proj = []
+		marblefloor = loadImage('res/marblefloor.png')
+		self.camerax=0
+		self.cameray=0
+		self.screenspeed=1
+		self.cameraslack=250
+		self.cameraslacky=200
 	def mainLoop(self):
+		for i in range(0,9):
+			for j in range(0,9):
+				drawImage(marblefloor, (j*backgroundx)-self.camerax, (i*backgroundy)-self.cameray, 384,384)
+		
+		if self.man.x>(_screenWidth-self.cameraslack):
+			self.camerax+=(self.man.x-(_screenWidth-self.cameraslack))
+			self.man.x=(_screenWidth-self.cameraslack)
+			
+		if self.man.y>(_screenHeight-self.cameraslacky):
+			self.cameray+=(self.man.y-(_screenHeight-self.cameraslacky))
+			self.man.y=(_screenHeight-self.cameraslacky)
+				
+		if self.man.x<self.cameraslack:
+			self.camerax+=(self.man.x-self.cameraslack)
+			self.man.x=self.cameraslack
+			
+		if self.man.y<self.cameraslacky:
+			self.cameray+=(self.man.y-self.cameraslacky)
+			self.man.y=self.cameraslacky
+		
 		self.man.move()
 		self.man.draw()
 		if isLeftMouseDown():
@@ -104,6 +130,7 @@ class Level:
 			self.proj[i].draw()
 			if self.proj[i].checkIfOut():
 				del self.proj[i]
+	
 
 walls1 = [0,1]
 enemies1 = [0,1]
