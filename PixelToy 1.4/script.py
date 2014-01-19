@@ -1,10 +1,12 @@
 import math
 
-epicface = loadImage('res/epicface.png')
-fireball = loadImage('res/untitled.png')
+epicface    = loadImage('res/epicface.png')
+fireball    = loadImage('res/Untitled.png')
 marblefloor = loadImage('res/marblefloor.png')
-backgroundy = 384
-backgroundx = 384
+buttonUp    = loadImage('res/buttonUp.png')
+buttonDown  = loadImage('res/buttonDown.png')
+backgroundWidth = 384
+backgroundHeight = 384
 
 man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
@@ -14,13 +16,20 @@ LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
 NIL   = "nil"
+RESUME= "resume"
+PAUSE = "pause"
 
 MAXSPEED = 2.7
-#yolo
-allKeysUsed = ('w','a','s','d','e')
-RED = "red"
-GREEN = "green"
-epicTime = False
+
+allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','shift','tab','space','escape')
+
+#            Colours
+#	  R   G   B Alpha
+RED   = (255, 0 , 0 ,255)
+GREEN = ( 0 ,255, 0 ,255)
+BLACK = ( 0 , 0 , 0 ,255)
+
+#Utilities
 class Rect:
 	def __init__(self,x,y,w,h):
 		self.x1 = x
@@ -48,30 +57,45 @@ class Rect:
 		if self.x2>rect2.x1 and self.x2<rect2.x2 and self.y2>rect2.y1 and self.y2<rect2.y2:
 			return True
 		return False
-#What does this even do?
+
+def useColourList(colour):
+	useColour(colour[0],colour[1],colour[2],colour[3])
+
+def drawRect(rect):
+	drawRectangle(self.rect.x1,self.rect.y1,self.rect.width,self.rect.height)
+
+def drawImageRect(image,rect):
+	drawImage(image,rect.x1+rect.width/2,rect.y1+rect.height/2,rect.width,rect.height)
+#Utilities
+
+#Button class
 class Button:
-	def __init__(self,rect,text,function):
-		self.rect = rect
+	def __init__(self,x,y,width,text,returnValue):
+		self.rect = Rect(x,y,width,35)
 		self.text = text
-		self.function = function
-		self.colour = RED
-	def checkClick(self,mousex,mousey,mousedown,firstMouseup):
+		self.returnValue = returnValue
+		self.image = buttonUp
+	def isUnderMouse(self,mousex,mousey,mousedown):
 		if self.rect.rectCollide(Rect(mousex,mousey,0,0)): #checking if mouse is over button
 			if mousedown:
-				self.colour = GREEN
+				self.image = buttonDown
 			else:
-				self.colour = RED
-			if firstMouseup:
-				function()
+				self.image = buttonUp
+			return True
+		return False
 	def draw(self):
-		if self.colour == RED:
-			useColour(255,0,0,255)
-		elif self.colour == GREEN:
-			drawRectangle(self.rect.x1,self.rect.y1,self.rect.width,self.rect.height)
-#The walls
+		drawImageRect(self.image,self.rect)
+		useColourList(BLACK)
+		if self.image == buttonUp:
+			drawString(self.rect.x1+self.rect.width/2-len(self.text)*6,self.rect.y1+13,self.text)
+		else:
+			drawString(self.rect.x1+self.rect.width/2-len(self.text)*6,self.rect.y1+11,self.text)
+#Button class
+
+#Wall class
 class Wall:
-	def __init__(self,rect):
-		self.rect = rect
+	def __init__(self,x,y,w,h):
+		self.rect = Rect(x,y,w*10,h*10)
 	def playerCollide(self,playerx,playery,playerSize):
 		canNotMoves = []
 		movedx = playerx
@@ -93,9 +117,11 @@ class Wall:
 			movedy = playery
 		return canNotMoves
 	def draw(self,camerax,cameray):
-		useColour(255,0,0,255)
+		useColourList(GREEN)
 		drawRectangle(self.rect.x1-camerax,self.rect.y1-cameray,self.rect.width,self.rect.height)
-#Project Ile
+#Wall class
+
+#Projectile class
 class Projectile:
 	def __init__(self):
 		self.notIdle = False
@@ -112,14 +138,10 @@ class Projectile:
 		if self.notIdle:
 			self.x += self.b/self.d*self.projSpeed
 			self.y += self.a/self.d*self.projSpeed
-	def draw(self,camerax,cameray,epicTime,fireball):
+	def draw(self,camerax,cameray,fireball):
 		useColour(255,0,0,100)
-		if not epicTime:
-			fireball.rotate(-2)
-			drawImage(fireball,self.x-camerax,self.y-cameray,self.size*2,self.size*2)
-		else:
-			epicface.rotate(1)
-			drawImage(epicface,self.x-camerax,self.y-cameray,self.size*2,self.size*2)
+		fireball.rotate(-2)
+		drawImage(fireball,self.x-camerax,self.y-cameray,self.size*2,self.size*2)
 	def checkIfOut(self,camerax,cameray):
 		if self.x-camerax < -self.size or self.x-camerax > _screenWidth+self.size or self.y-cameray < -self.size or self.y-cameray > _screenHeight+self.size and self.notIdle:
 			return True
@@ -130,7 +152,9 @@ class Projectile:
 			return True
 		else:
 			return False
-#PLAY WITH MEEEEE
+#Projectile class
+
+#PLAY WITH MEEEEE class
 class Player:
 	def __init__(self,x,y):
 		self.x = x
@@ -198,31 +222,33 @@ class Player:
 			drawImage(man2,self.x-camerax,self.y-cameray,self.size,self.size)
 		else:
 			drawImage(man1,self.x-camerax,self.y-cameray,self.size,self.size)
-#Level Up!
+#Player class
+
+#Level Up! class
 class Level:
-	def __init__(self,player,buttons):
+	def __init__(self,player,buttons,walls,enemies):
 		self.hasMan = False
 		if not player == NIL:
 			self.man = player
 			self.hasMan = True
+			self.camerax=self.man.x-_screenWidth/2
+			self.cameray=self.man.y-_screenHeight/2
+		else:
+			self.camerax=0
+			self.cameray=0
+		self.walls = walls
+		self.enemies = enemies
 		self.buttons = buttons
 		self.mousedown = False
 		self.pressedkeys = []
-		self.camerax=self.man.x-_screenWidth/2
-		self.cameray=self.man.y-_screenHeight/2
-		self.screenspeed=1
+		
 		self.cameraslack=250
 		self.cameraslacky=200
-		
-	def updateObstacles(self,walls,enemies):
-		self.walls = walls
-		self.enemies = enemies
-	def mainLoop(self,epicTime):
+	def mainLoop(self):
 		canNotMoves = []
 		self.pressedKeys = []
 		firstMousedown = False
 		firstMouseup = False
-		
 		
 		if isLeftMouseDown() and self.mousedown == False:
 			firstMousedown = True
@@ -235,51 +261,62 @@ class Level:
 			if isKeyDown(key):
 				self.pressedKeys.append(key)
 				
-		for key in self.pressedKeys:
-			if key == 'e':
-				if epicTime:
-					epicTime = False
-				else:
-					epicTime = True
 		for i in range(0,9):
 			for j in range(0,9):
-				drawImage(marblefloor, (j*backgroundx)-self.camerax, (i*backgroundy)-self.cameray, 384,384)
-				
+				drawImage(marblefloor, (j*backgroundWidth)-self.camerax, (i*backgroundHeight)-self.cameray, backgroundWidth,backgroundHeight)
+		
+		overButtons = False
+		for button in self.buttons:
+			button.draw()
+			if self.hasMan:
+				if not self.man.inAttack:
+					overButtons = button.isUnderMouse(_mouseX,_mouseY,self.mousedown)
+			elif button.isUnderMouse(_mouseX,_mouseY,self.mousedown):
+				break
 		if self.hasMan:
-			if self.man.x-self.camerax>(_screenWidth-self.cameraslack):
+			if self.man.x-self.camerax>(_screenWidth-self.cameraslack) or self.man.x-self.camerax<self.cameraslack:
 				self.camerax+=self.man.speedx
 
-			if self.man.y-self.cameray>(_screenHeight-self.cameraslacky):
+			if self.man.y-self.cameray>(_screenHeight-self.cameraslacky) or self.man.y-self.cameray<self.cameraslacky:
 				self.cameray+=self.man.speedy		
-					
-			if self.man.x-self.camerax<self.cameraslack:
-				self.camerax+=self.man.speedx
-			
-			if self.man.y-self.cameray<self.cameraslacky:
-				self.cameray+=self.man.speedy
-				
 			for wall in self.walls:
 				canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
 				for j in range(len(self.man.proj), 0, -1):
 					i = j-1
 					projectile = self.man.proj[i]
 					projectile.move()
-					projectile.draw(self.camerax,self.cameray,epicTime,fireball)
+					projectile.draw(self.camerax,self.cameray,fireball)
 					if projectile.checkIfOut(self.camerax,self.cameray) or projectile.checkIfCollide(wall.rect):
 						del self.man.proj[i]
-			if self.mousedown:
-				self.man.powerup(_mouseX,_mouseY,firstMousedown,self.camerax, self.cameray)
-			if firstMouseup:
-				self.man.attack(_mouseX,_mouseY,self.camerax, self.cameray)
+
+			if not overButtons:
+				if self.mousedown:				
+					self.man.powerup(_mouseX,_mouseY,firstMousedown,self.camerax, self.cameray)
+				if firstMouseup:
+					self.man.attack(_mouseX,_mouseY,self.camerax, self.cameray)
 			self.man.move(canNotMoves,self.pressedKeys,self.camerax,self.cameray)
 			self.man.draw(self.camerax, self.cameray) 
 		
 		for wall in self.walls:
 			wall.draw(self.camerax, self.cameray)
+		
+		for button in self.buttons:
+			if firstMouseup and button.isUnderMouse(_mouseX,_mouseY,self.mousedown):
+				return button.returnValue
+		return NIL
+#Level class
 
-LVL1= {"LVL":Level(Player(1000,1000),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
-currentLVL = LVL1
-currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
+
+LEVELS= [Level(Player(1000,1000),[Button(0,_screenHeight-35,100,'pause',PAUSE)],[Wall(100,100,10,1),Wall(200,100,1,10)],[0,1])]
+SPECIALLEVELS= {"PAUSE":Level(NIL,[Button(_screenWidth/2-75,_screenHeight/2-35/2,150,'resume game',RESUME)],[],[1,0])}
+currentLVL = LEVELS[0]
+pausedGame = currentLVL
 while True:
 	newFrame()
-	currentLVL["LVL"].mainLoop(epicTime)
+	lvlReturn = currentLVL.mainLoop()
+	if lvlReturn != NIL:
+		if lvlReturn == PAUSE:
+			pausedGame = currentLVL
+			currentLVL = SPECIALLEVELS["PAUSE"]
+		if lvlReturn == RESUME:
+			currentLVL = pausedGame
