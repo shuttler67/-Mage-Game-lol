@@ -1,7 +1,7 @@
 import math
 
 epicface    = loadImage('res/epicface.png')
-fireball    = loadImage('res/Untitled.png')
+fireball    = loadImage('res/Fireball.png')
 marblefloor = loadImage('res/marblefloor.png')
 buttonUp    = loadImage('res/buttonUp.png')
 buttonDown  = loadImage('res/buttonDown.png')
