@@ -144,7 +144,7 @@ class Projectile:
                 drawImage(fireball,self.x-camerax,self.y-cameray,self.size*2,self.size*2)
         def checkIfOut(self,camerax,cameray):
                 if self.x-camerax < -self.size or self.x-camerax > _screenWidth+self.size or self.y-cameray < -self.size or self.y-cameray > _screenHeight+self.size and self.notIdle:
-                        return True
+						return True
                 else:
                         return False
         def checkIfCollide(self,rect):
@@ -153,6 +153,30 @@ class Projectile:
                 else:
                         return False
 #Projectile class
+
+#Enemies
+class Enemy:
+		def __init__(self,maxHealth,x,y,detectRange,size,minAttackDamage,maxAttackDamage):	
+				self.maxHealth = maxHealth-10+random()*10
+				self.health = self.maxHealth
+				self.x = x
+				self.y = y
+				self.speedx = 0
+				self.speedy = 0
+				self.detectRange = detectRange
+				self.size = size
+				self.minAttackDamage = minAttackDamage
+				self.maxAttackDamage = maxAttackDamage
+		def touchAttack(self,player):
+				if math.hypot(player.x-self.x,player.y-self.y) < (player.size+self.size)/2:
+						player.speedx = (player.x-self.x)*-1
+						player.speedy = (player.y-self.y)*-1
+						self.speedx = 0
+						self.speedy = 0
+						player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
+						
+						
+#Enemies
 
 #PLAY WITH MEEEEE class
 class Player:
@@ -167,6 +191,8 @@ class Player:
                 self.inAttack = False
                 self.projSize = 3
                 self.proj = []
+				self.maxHealth = 200
+				self.health = self.maxHealth
         def powerup(self,mousex,mousey,firstMousedown,camerax,cameray):
                 if firstMousedown:
                         self.proj.append(Projectile())
@@ -278,7 +304,7 @@ class Level:
                                 self.camerax+=self.man.speedx
 
                         if self.man.y-self.cameray>(_screenHeight-self.cameraslacky) or self.man.y-self.cameray<self.cameraslacky:
-                                self.cameray+=self.man.speedy                
+                                self.cameray+=self.man.speedy
                         for wall in self.walls:
                                 canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
                                 for j in range(len(self.man.proj), 0, -1):
