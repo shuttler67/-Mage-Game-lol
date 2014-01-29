@@ -1,2 +1,2 @@
-java -jar pixelToy.jar
+java -jar PixelToy.jar
 pause
