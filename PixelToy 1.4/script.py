@@ -60,7 +60,7 @@ class Button:
 			else:
 				self.colour = RED
 			if firstMouseup:
-				function()
+				self.function()
 	def draw(self):
 		if self.colour == RED:
 			useColour(255,0,0,255)
@@ -118,7 +118,7 @@ class Projectile:
 			return True
 		else:
 			return False
-
+class Enemie
 class Player:
 	def __init__(self,x,y):
 		self.x = x
@@ -232,7 +232,8 @@ class Level:
 			self.man.move(canNotMoves,self.pressedKeys)
 			self.man.draw() 
 
-LVL1= {"LVL":Level(Player(50,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
+LVL1= {"LVL":Level(Player(_screenWidth/2,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
+LVL2= {"LVL":Level(Player(_screenWidth/2,_screenHeight/2),[1,2]),"WALLS":[Wall(Rect(100,100,100,10)),Wall(Rect(200,100,10,100))],"ENEMIES":[0,1]}
 currentLVL = LVL1
 currentLVL["LVL"].updateObstacles(currentLVL["WALLS"],currentLVL["ENEMIES"])
 while True:
