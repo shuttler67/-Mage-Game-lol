@@ -79,29 +79,7 @@ def drawImageRect(image,rect):
 
 #Button class
 class Button:
-<<<<<<< HEAD
-	def __init__(self,x,y,width,text,returnValue):
-		self.rect = Rect(x,y,width,35)
-		self.text = text
-		self.returnValue = returnValue
-		self.image = buttonUp
-	def isUnderMouse(self):
 
-		return self.rect.rectCollide(Rect(_mouseX,_mouseY,0,0)) #checking if mouse is over button
-
-	def draw(self,mousedown):
-		if self.isUnderMouse():
-			if mousedown:
-				self.image = buttonDown
-			else:
-				self.image = buttonUp
-		drawImageRect(self.image,self.rect)
-		useColourList(BLACK)
-		if self.image == buttonUp:
-			drawString(self.rect.x1+self.rect.width/1.9-len(self.text)*6,self.rect.y1+13,self.text)
-		else:
-			drawString(self.rect.x1+self.rect.width/1.9-len(self.text)*6,self.rect.y1+11,self.text)
-=======
 		def __init__(self,x,y,width,text,returnValue):
 				self.rect = Rect(x,y,width,35)
 				self.text = text
@@ -116,7 +94,7 @@ class Button:
 				else:
 						drawImageRect(buttonUp,self.rect)
 						drawString(self.rect.x1+self.rect.width/2-len(self.text)*6,self.rect.y1+13,self.text)
->>>>>>> 6be2dfb349d271f5e151182a2d4c9fb6c5b573ae
+
 #Button class
 
 #Wall class
@@ -138,16 +116,6 @@ class Wall:
 						if direction == DOWN:
 								movedy = playery - MAXSPEED
 
-<<<<<<< HEAD
-			if self.rect.rectCollide(Rect(movedx-(playerSize/2),movedy-(playerSize/2),playerSize,playerSize)):
-				canNotMoves.append(direction)
-			movedx = playerx
-			movedy = playery
-		return canNotMoves
-	def draw(self,camerax,cameray):
-		useColourList(BLACK)
-		drawRectangle(self.rect.x1-camerax,self.rect.y1-cameray,self.rect.width,self.rect.height)
-=======
 						if self.rect.rectCollide(Rect(movedx-(playerSize/2),movedy-(playerSize/2),playerSize,playerSize)):
 								canNotMoves.append(direction)
 						movedx = playerx
@@ -156,7 +124,7 @@ class Wall:
 		def draw(self,cameraX,cameraY):
 				useColourList(GREEN)
 				drawRectangle(self.rect.x1-cameraX,self.rect.y1-cameraY,self.rect.width,self.rect.height)
->>>>>>> 6be2dfb349d271f5e151182a2d4c9fb6c5b573ae
+
 #Wall class
 
 #Projectile class
@@ -218,56 +186,7 @@ class Enemy:
 
 #PLAY WITH MEEEEE class
 class Player:
-<<<<<<< HEAD
-	def __init__(self,x,y):
-		self.x = x
-		self.y = y
-		self.size = 60
-		self.rect = Rect(x,y,self.size,self.size)
-		self.speedx = 0
-		self.speedy = 0
-		self.acceleration = 0.3
-		self.inAttack = False
-		self.projSize = 3
-		self.proj = []
-	def powerup(self,firstMousedown,camerax,cameray):
-		if firstMousedown:
-			self.proj.append(Projectile())
-		if self.projSize <= 10:
-			self.projSize += 0.1
-		self.proj[-1].update(self.projSize,False,self.x,self.y+self.size/2+self.projSize/2,_mouseX+camerax,_mouseY+cameray)
-		self.inAttack = True
-	def attack(self,camerax,cameray):
-		self.proj[-1].update(self.projSize,True,self.x,self.y+self.size/2+self.projSize/2,_mouseX+camerax,_mouseY+cameray)
-		self.projSize = 3
-		self.inAttack = False
-	def move(self,canNotMoves,pressedKeys,camerax,cameray):
-		self.directions = []
-		if self.inAttack:
-			self.acceleration = 0.1
-		else:
-			self.acceleration = 0.3
-		for key in pressedKeys:
-			if key == 'w':
-				self.speedy += self.acceleration
-			if key == 'a':
-				self.speedx -= self.acceleration
-			if key == 's':
-				self.speedy -= self.acceleration
-			if key == 'd':
-				self.speedx += self.acceleration
-		
-		self.speedx *= 0.9
-		self.speedy *= 0.9
-		if self.speedx > 0:
-			self.directions.append(RIGHT)
-		if self.speedx < 0:
-			self.directions.append(LEFT)
-		if self.speedy > 0:
-			self.directions.append(UP)
-		if self.speedy < 0:
-			self.directions.append(DOWN)
-=======
+
 		def __init__(self):
 				self.x = 0
 				self.y = 0
@@ -304,7 +223,6 @@ class Player:
 						self.directions.append(UP)
 				if self.speedy < 0:
 						self.directions.append(DOWN)
->>>>>>> 6be2dfb349d271f5e151182a2d4c9fb6c5b573ae
 
 				for direction in self.directions:
 						for canNotMove in canNotMoves:
@@ -327,97 +245,7 @@ class Player:
 
 #Level Up! class
 class Level:
-<<<<<<< HEAD
-	def __init__(self,LevelData):
-		self.hasMan = False
-		if not LevelData["PLAYER"] == NIL:
-			self.man = LevelData["PLAYER"]
-			self.hasMan = True
-			self.camerax=self.man.x-_screenWidth/2
-			self.cameray=self.man.y-_screenHeight/2
-		else:
-			self.camerax=0
-			self.cameray=0
-		self.walls = LevelData["WALLS"]
-		self.enemies = LevelData["ENEMIES"]
-		self.buttons = LevelData["BUTTONS"]
-		self.mousedown = False
-		self.pressedkeys = []
-		self.cameraslack=250
-		self.cameraslacky=200
-	def mainLoop(self):
-		canNotMoves = []
-		self.pressedKeys = []
-		firstMousedown = False
-		firstMouseup = False
-		
-		if isLeftMouseDown() and self.mousedown == False:
-			firstMousedown = True
-			self.mousedown = True
-		if not isLeftMouseDown() and self.mousedown == True:
-			firstMouseup = True
-			self.mousedown = False
-		
-		for key in allKeysUsed:
-			if isKeyDown(key):
-				self.pressedKeys.append(key)
-				
-		for i in range(0,9):
-			for j in range(0,9):
-				drawImage(marblefloor, (j*backgroundWidth)-self.camerax, (i*backgroundHeight)-self.cameray, backgroundWidth,backgroundHeight)
-		
-		overButtons = False
-		for button in self.buttons:
-			button.draw(self.mousedown)
-			if self.hasMan:
-				if not self.man.inAttack:
-					overButtons = button.isUnderMouse()
-		if self.hasMan:
-			if self.man.x-self.camerax>(_screenWidth-self.cameraslack) or self.man.x-self.camerax<self.cameraslack:
-				self.camerax+=self.man.speedx
 
-			if self.man.y-self.cameray>(_screenHeight-self.cameraslacky) or self.man.y-self.cameray<self.cameraslacky:
-				self.cameray+=self.man.speedy	
-	
-			for wall in self.walls:
-				canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
-				for j in range(len(self.man.proj), 0, -1):
-					i = j-1
-					projectile = self.man.proj[i]
-					projectile.move()
-					projectile.draw(self.camerax,self.cameray,fireball)
-					if projectile.checkIfOut(self.camerax,self.cameray) or projectile.checkIfCollide(wall.rect):
-						del self.man.proj[i]
-
-			if not overButtons:
-				if self.mousedown:				
-					self.man.powerup(firstMousedown,self.camerax, self.cameray)
-				if firstMouseup:
-					self.man.attack(self.camerax, self.cameray)
-			self.man.move(canNotMoves,self.pressedKeys,self.camerax,self.cameray)
-			self.man.draw(self.camerax, self.cameray) 
-		
-		for wall in self.walls:
-			wall.draw(self.camerax, self.cameray)
-		
-		for button in self.buttons:
-			if firstMouseup and button.isUnderMouse():
-				return button.returnValue
-		return NIL
-#Level class
-
-LEVELS= [{"PLAYER":Player(1000,1000),"BUTTONS":[Button(0,_screenHeight-35,100,'pause','PAUSE')],"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[]}]
-SPECIALLEVELS= {"MENU":{"PLAYER":NIL,"BUTTONS":[Button(_screenWidth/2-50,_screenHeight/2,100,'play','PLAY')],"WALLS":[],"ENEMIES":[]},
-		"PAUSE":{"PLAYER":NIL,"BUTTONS":[Button(_screenWidth/2-75,_screenHeight/2,150,'resume game','RESUME'),Button(_screenWidth/2-75,_screenHeight/2-35,150,'menu','MENU')],"WALLS":[],"ENEMIES":[]}}
-currentLVL = Level(SPECIALLEVELS["MENU"])
-while True:
-	newFrame()
-	lvlReturn = currentLVL.mainLoop()
-	if lvlReturn != NIL:
-		if lvlReturn == 'PAUSE':
-			
-			
-=======
 		def __init__(self,levelDICT): 
 				self.walls = levelDICT["WALLS"]
 				self.enemies = levelDICT["ENEMIES"]
@@ -504,4 +332,4 @@ while True:
 		
 		game.gameLoop()
 								
->>>>>>> 6be2dfb349d271f5e151182a2d4c9fb6c5b573ae
+
