@@ -15,9 +15,6 @@ RIGHT = "right"
 LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
-NIL   = "nil"
-RESUME= "resume"
-PAUSE = "pause"
 
 MAXSPEED = 2.7
 
@@ -75,21 +72,22 @@ class Button:
 		self.text = text
 		self.returnValue = returnValue
 		self.image = buttonUp
-	def isUnderMouse(self,mousex,mousey,mousedown):
-		if self.rect.rectCollide(Rect(mousex,mousey,0,0)): #checking if mouse is over button
+	def isUnderMouse(self):
+
+		return self.rect.rectCollide(Rect(_mouseX,_mouseY,0,0)) #checking if mouse is over button
+
+	def draw(self,mousedown):
+		if self.isUnderMouse():
 			if mousedown:
 				self.image = buttonDown
 			else:
 				self.image = buttonUp
-			return True
-		return False
-	def draw(self):
 		drawImageRect(self.image,self.rect)
 		useColourList(BLACK)
 		if self.image == buttonUp:
-			drawString(self.rect.x1+self.rect.width/2-len(self.text)*6,self.rect.y1+13,self.text)
+			drawString(self.rect.x1+self.rect.width/1.9-len(self.text)*6,self.rect.y1+13,self.text)
 		else:
-			drawString(self.rect.x1+self.rect.width/2-len(self.text)*6,self.rect.y1+11,self.text)
+			drawString(self.rect.x1+self.rect.width/1.9-len(self.text)*6,self.rect.y1+11,self.text)
 #Button class
 
 #Wall class
@@ -117,7 +115,7 @@ class Wall:
 			movedy = playery
 		return canNotMoves
 	def draw(self,camerax,cameray):
-		useColourList(GREEN)
+		useColourList(BLACK)
 		drawRectangle(self.rect.x1-camerax,self.rect.y1-cameray,self.rect.width,self.rect.height)
 #Wall class
 
@@ -159,7 +157,7 @@ class Player:
 	def __init__(self,x,y):
 		self.x = x
 		self.y = y
-		self.size = 64
+		self.size = 60
 		self.rect = Rect(x,y,self.size,self.size)
 		self.speedx = 0
 		self.speedy = 0
@@ -167,15 +165,15 @@ class Player:
 		self.inAttack = False
 		self.projSize = 3
 		self.proj = []
-	def powerup(self,mousex,mousey,firstMousedown,camerax,cameray):
+	def powerup(self,firstMousedown,camerax,cameray):
 		if firstMousedown:
 			self.proj.append(Projectile())
 		if self.projSize <= 10:
 			self.projSize += 0.1
-		self.proj[-1].update(self.projSize,False,self.x,self.y+self.size/2+self.projSize/2,mousex+camerax,mousey+cameray)
+		self.proj[-1].update(self.projSize,False,self.x,self.y+self.size/2+self.projSize/2,_mouseX+camerax,_mouseY+cameray)
 		self.inAttack = True
-	def attack(self,mousex,mousey,camerax,cameray):
-		self.proj[-1].update(self.projSize,True,self.x,self.y+self.size/2+self.projSize/2,mousex+camerax,mousey+cameray)
+	def attack(self,camerax,cameray):
+		self.proj[-1].update(self.projSize,True,self.x,self.y+self.size/2+self.projSize/2,_mouseX+camerax,_mouseY+cameray)
 		self.projSize = 3
 		self.inAttack = False
 	def move(self,canNotMoves,pressedKeys,camerax,cameray):
@@ -226,22 +224,21 @@ class Player:
 
 #Level Up! class
 class Level:
-	def __init__(self,player,buttons,walls,enemies):
+	def __init__(self,LevelData):
 		self.hasMan = False
-		if not player == NIL:
-			self.man = player
+		if not LevelData["PLAYER"] == NIL:
+			self.man = LevelData["PLAYER"]
 			self.hasMan = True
 			self.camerax=self.man.x-_screenWidth/2
 			self.cameray=self.man.y-_screenHeight/2
 		else:
 			self.camerax=0
 			self.cameray=0
-		self.walls = walls
-		self.enemies = enemies
-		self.buttons = buttons
+		self.walls = LevelData["WALLS"]
+		self.enemies = LevelData["ENEMIES"]
+		self.buttons = LevelData["BUTTONS"]
 		self.mousedown = False
 		self.pressedkeys = []
-		
 		self.cameraslack=250
 		self.cameraslacky=200
 	def mainLoop(self):
@@ -267,18 +264,17 @@ class Level:
 		
 		overButtons = False
 		for button in self.buttons:
-			button.draw()
+			button.draw(self.mousedown)
 			if self.hasMan:
 				if not self.man.inAttack:
-					overButtons = button.isUnderMouse(_mouseX,_mouseY,self.mousedown)
-			elif button.isUnderMouse(_mouseX,_mouseY,self.mousedown):
-				
+					overButtons = button.isUnderMouse()
 		if self.hasMan:
 			if self.man.x-self.camerax>(_screenWidth-self.cameraslack) or self.man.x-self.camerax<self.cameraslack:
 				self.camerax+=self.man.speedx
 
 			if self.man.y-self.cameray>(_screenHeight-self.cameraslacky) or self.man.y-self.cameray<self.cameraslacky:
-				self.cameray+=self.man.speedy		
+				self.cameray+=self.man.speedy	
+	
 			for wall in self.walls:
 				canNotMoves += wall.playerCollide(self.man.x,self.man.y,self.man.size)
 				for j in range(len(self.man.proj), 0, -1):
@@ -291,9 +287,9 @@ class Level:
 
 			if not overButtons:
 				if self.mousedown:				
-					self.man.powerup(_mouseX,_mouseY,firstMousedown,self.camerax, self.cameray)
+					self.man.powerup(firstMousedown,self.camerax, self.cameray)
 				if firstMouseup:
-					self.man.attack(_mouseX,_mouseY,self.camerax, self.cameray)
+					self.man.attack(self.camerax, self.cameray)
 			self.man.move(canNotMoves,self.pressedKeys,self.camerax,self.cameray)
 			self.man.draw(self.camerax, self.cameray) 
 		
@@ -301,22 +297,19 @@ class Level:
 			wall.draw(self.camerax, self.cameray)
 		
 		for button in self.buttons:
-			if firstMouseup and button.isUnderMouse(_mouseX,_mouseY,self.mousedown):
+			if firstMouseup and button.isUnderMouse():
 				return button.returnValue
 		return NIL
 #Level class
 
-
-LEVELS= [Level(Player(1000,1000),[Button(0,_screenHeight-35,100,'pause',PAUSE)],[Wall(100,100,10,1),Wall(200,100,1,10)],[0,1])]
-SPECIALLEVELS= {"PAUSE":Level(NIL,[Button(_screenWidth/2-75,_screenHeight/2-35/2,150,'resume game',RESUME)],[],[1,0])}
-currentLVL = LEVELS[0]
-pausedGame = currentLVL
+LEVELS= [{"PLAYER":Player(1000,1000),"BUTTONS":[Button(0,_screenHeight-35,100,'pause','PAUSE')],"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[]}]
+SPECIALLEVELS= {"MENU":{"PLAYER":NIL,"BUTTONS":[Button(_screenWidth/2-50,_screenHeight/2,100,'play','PLAY')],"WALLS":[],"ENEMIES":[]},
+		"PAUSE":{"PLAYER":NIL,"BUTTONS":[Button(_screenWidth/2-75,_screenHeight/2,150,'resume game','RESUME'),Button(_screenWidth/2-75,_screenHeight/2-35,150,'menu','MENU')],"WALLS":[],"ENEMIES":[]}}
+currentLVL = Level(SPECIALLEVELS["MENU"])
 while True:
 	newFrame()
 	lvlReturn = currentLVL.mainLoop()
 	if lvlReturn != NIL:
-		if lvlReturn == PAUSE:
-			pausedGame = currentLVL
-			currentLVL = SPECIALLEVELS["PAUSE"]
-		if lvlReturn == RESUME:
-			currentLVL = pausedGame
+		if lvlReturn == 'PAUSE':
+			
+			
