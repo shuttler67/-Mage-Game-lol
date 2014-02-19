@@ -9,8 +9,18 @@ mail4 = loadImage('res/mail4.png')
 backgroundWidth = 384
 backgroundHeight = 384
 
-man1 = loadImage('res/man1.png')
-man2 = loadImage('res/man2.png')
+manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
+
+still = loadImage('res/postmanstill.png')
+charge1 = loadImage('res/postmancharge1.png')
+charge2 = loadImage('res/postmancharge2.png')
+walk1 = loadImage('res/postmanwalk1.png')
+walk2 = loadImage('res/postmanwalk2.png')
+walk3 = loadImage('res/postmanwalk3.png')
+walk4 = loadImage('res/postmanwalk4.png')
+manwalk = (walk1,walk2)
+mancharge = (charge1,charge2)
+manstill = (still)
 
 RIGHT = "right"
 LEFT  = "left"
@@ -191,6 +201,8 @@ class Player:
 		self.maxMana = 100
 		self.health = self.maxHealth 
 		self.mana = self.maxMana
+		self.animspeed = 0
+		self.isMoving = False
 	def move(self,canNotMoves,cameraX,cameraY):
 		self.directions = []
 		if self.inAttack:
@@ -207,6 +219,10 @@ class Player:
 		if KEYSTATES['d']:
 			self.speedx += self.acceleration
 				
+		if KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']:
+			self.isMoving=True
+		else: 
+			self.isMoving=False
 		self.speedx *= 0.9
 		self.speedy *= 0.9
 		if self.speedx > 0:
@@ -227,13 +243,36 @@ class Player:
 										
 		self.x += self.speedx
 		self.y += self.speedy
-
+		
+	def search(self):
+		pass
 				
 	def draw(self,cameraX,cameraY):
+		
 		if self.inAttack:
-			drawImage(man2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			self.animspeed+=1
+			if self.animspeed<30:
+				drawImage(charge1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			else:
+				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.animspeed>60:
+				self.animspeed=0
+		elif self.isMoving:
+			self.animspeed+=1
+			if RIGHT in self.directions:
+				if self.animspeed<15:
+					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				else:
+					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if LEFT in self.directions:
+				if self.animspeed<15:
+					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				else:
+					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.animspeed>30:
+				self.animspeed=0
 		else:
-			drawImage(man1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 #Player class
 
 #GUI class
