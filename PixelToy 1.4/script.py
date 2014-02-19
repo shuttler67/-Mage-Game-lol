@@ -15,6 +15,8 @@ charge1 = loadImage('res/postmancharge1.png')
 charge2 = loadImage('res/postmancharge2.png')
 walk1 = loadImage('res/postmanwalk1.png')
 walk2 = loadImage('res/postmanwalk2.png')
+walk3 = loadImage('res/postmanwalk3.png')
+walk4 = loadImage('res/postmanwalk4.png')
 manwalk = (walk1,walk2)
 mancharge = (charge1,charge2)
 manstill = (still)
@@ -240,6 +242,8 @@ class Player:
 		self.x += self.speedx
 		self.y += self.speedy
 		
+	def search(self):
+		
 				
 	def draw(self,cameraX,cameraY):
 		
@@ -255,9 +259,9 @@ class Player:
 			self.animspeed+=1
 			if RIGHT in self.directions:
 				if self.animspeed<15:
-					drawImage(walk1,self.x-cameraX,self.y-cameraY,-MANSIZE,MANSIZE)
+					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
-					drawImage(walk2,self.x-cameraX,self.y-cameraY,-MANSIZE,MANSIZE)
+					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if LEFT in self.directions:
 				if self.animspeed<15:
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
