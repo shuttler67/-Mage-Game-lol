@@ -8,14 +8,22 @@ buttonDown = loadImage('res/buttonDown.png')
 backgroundWidth = 384
 backgroundHeight = 384
 
-man1 = loadImage('res/man1.png')
-man2 = loadImage('res/man2.png')
+manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
+
+still = loadImage('res/postmanstill.png')
+charge1 = loadImage('res/postmancharge1.png')
+charge2 = loadImage('res/postmancharge2.png')
+walk1 = loadImage('res/postmanwalk1.png')
+walk2 = loadImage('res/postmanwalk2.png')
+manwalk = (walk1,walk2)
+mancharge = (charge1,charge2)
+manstill = (still)
 
 RIGHT = "right"
 LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
-
+PAUSE = "pause"
 
 MAXSPEED = 2.7
 MANSIZE = 60
@@ -189,6 +197,8 @@ class Player:
 		self.inAttack = False
 		self.maxHealth = 200
 		self.health = self.maxHealth
+		self.animspeed = 0
+		self.isMoving = False
 	def move(self,canNotMoves,cameraX,cameraY):
 		self.directions = []
 		if self.inAttack:
@@ -205,6 +215,10 @@ class Player:
 		if KEYSTATES['d']:
 			self.speedx += self.acceleration
 				
+		if KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']:
+			self.isMoving=True
+		else: 
+			self.isMoving=False
 		self.speedx *= 0.9
 		self.speedy *= 0.9
 		if self.speedx > 0:
@@ -225,13 +239,34 @@ class Player:
 										
 		self.x += self.speedx
 		self.y += self.speedy
-
+		
 				
 	def draw(self,cameraX,cameraY):
+		
 		if self.inAttack:
-			drawImage(man2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			self.animspeed+=1
+			if self.animspeed<30:
+				drawImage(charge1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			else:
+				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.animspeed>60:
+				self.animspeed=0
+		elif self.isMoving:
+			self.animspeed+=1
+			if RIGHT in self.directions:
+				if self.animspeed<15:
+					drawImage(walk1,self.x-cameraX,self.y-cameraY,-MANSIZE,MANSIZE)
+				else:
+					drawImage(walk2,self.x-cameraX,self.y-cameraY,-MANSIZE,MANSIZE)
+			if LEFT in self.directions:
+				if self.animspeed<15:
+					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				else:
+					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.animspeed>30:
+				self.animspeed=0
 		else:
-			drawImage(man1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 #Player class
 
 #Level Up! class
@@ -248,12 +283,12 @@ class Level:
 			
 		for wall in self.walls:
 			canNotMoves += wall.playerCollide(manX,manY,MANSIZE)
-				for j in range(len(self.proj), 0, -1):
-					i = j-1
-					projectile = self.proj[i]
-					projectile.move()
-					if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
-						del self.proj[i]
+			for j in range(len(self.proj), 0, -1):
+				i = j-1
+				projectile = self.proj[i]
+				projectile.move()
+				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
+					del self.proj[i]
 			return canNotMoves
 
 	def handleMouseUp(self,manX,manY,cameraX,cameraY):
