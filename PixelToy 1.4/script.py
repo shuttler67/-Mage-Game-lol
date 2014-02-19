@@ -12,18 +12,10 @@ man1 = loadImage('res/man1.png')
 man2 = loadImage('res/man2.png')
 
 RIGHT = "right"
-<<<<<<< HEAD
 LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
-=======
-LEFT = "left"
-UP = "up"
-DOWN = "down"
-NIL = "nil"
-RESUME= "resume"
-PAUSE = "pause"
->>>>>>> 6be2dfb349d271f5e151182a2d4c9fb6c5b573ae
+
 
 MAXSPEED = 2.7
 MANSIZE = 60
