@@ -5,6 +5,7 @@ fireball = loadImage('res/Fireball.png')
 marblefloor = loadImage('res/marblefloor.png')
 buttonUp = loadImage('res/buttonUp.png')
 buttonDown = loadImage('res/buttonDown.png')
+mail4 = loadImage('res/mail4.png')
 backgroundWidth = 384
 backgroundHeight = 384
 
@@ -15,7 +16,7 @@ RIGHT = "right"
 LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
-
+NIL = 'nil'
 
 MAXSPEED = 2.7
 MANSIZE = 60
@@ -178,7 +179,6 @@ class Enemy:
 
 #PLAY WITH MEEEEE class
 class Player:
-
 	def __init__(self):
 		self.x = 0
 		self.y = 0
@@ -188,7 +188,9 @@ class Player:
 		self.acceleration = 0.3
 		self.inAttack = False
 		self.maxHealth = 200
-		self.health = self.maxHealth
+		self.maxMana = 100
+		self.health = self.maxHealth 
+		self.mana = self.maxMana
 	def move(self,canNotMoves,cameraX,cameraY):
 		self.directions = []
 		if self.inAttack:
@@ -234,13 +236,39 @@ class Player:
 			drawImage(man1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 #Player class
 
+#GUI class
+
+class GUI:
+	def __init__(self):
+		self.buttons = [Button(0,_screenHeight-35,100,'pause','pause')]
+	def update(self,pause):
+		if pause:
+			self.buttons = [Button(_screenWidth/2-100,_screenHeight/2,200,'resume game','unpause'),Button(_screenWidth/2-100,_screenHeight/2-35,200,'main menu',NIL)]
+		else:
+			self.buttons = [Button(0,_screenHeight-35,100,'pause','pause')]
+	def handleMouseUp(self):
+		returnValue = NIL
+		overButton = False
+		for button in self.buttons:
+			if button.isUnderMouse():
+				overButton = True
+				returnValue = button.returnValue
+		return returnValue, overButton
+	def drawButtons(self):
+		for button in self.buttons:
+			button.draw()
+	def draw(self,healthRatio,manaRatio):
+		barWidth = _screenWidth/3
+		useColourList(BLACK)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-17,barWidth,17)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-35,barWidth,17)
+#GOOEY class
+
 #Level Up! class
 class Level:
-
 	def __init__(self,levelDICT): 
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
-		self.buttons = levelDICT["BUTTONS"]
 		self.projSize = 3
 		self.proj = []
 	def handleObjects(self,manX,manY,cameraX,cameraY):
@@ -248,22 +276,18 @@ class Level:
 			
 		for wall in self.walls:
 			canNotMoves += wall.playerCollide(manX,manY,MANSIZE)
-				for j in range(len(self.proj), 0, -1):
-					i = j-1
-					projectile = self.proj[i]
-					projectile.move()
-					if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
-						del self.proj[i]
+			for j in range(len(self.proj), 0, -1):
+				i = j-1
+				projectile = self.proj[i]
+				projectile.move()
+				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
+					del self.proj[i]
 			return canNotMoves
 
-	def handleMouseUp(self,manX,manY,cameraX,cameraY):
-		overButton = False
-		for button in self.buttons:
-			if button.isUnderMouse():
-				overButton = True
-			if not overButton:
-				self.proj.append(Projectile())
-				self.proj[-1].update(self.projSize,True,manX,manY+MANSIZE/2+self.projSize/2,_mouseX+cameraX,_mouseY+cameraY)
+	def handleMouseUp(self,overButton,manX,manY,cameraX,cameraY):		
+		if not overButton:
+			self.proj.append(Projectile())
+			self.proj[-1].update(self.projSize,True,manX,manY+MANSIZE/2+self.projSize/2,_mouseX+cameraX,_mouseY+cameraY)
 	def drawLevel(self,cameraX,cameraY):
 		for i in range(0,9):
 			for j in range(0,9):
@@ -272,8 +296,6 @@ class Level:
 			wall.draw(cameraX,cameraY)
 		for projectile in self.proj:
 			projectile.draw(cameraX,cameraY)
-		for button in self.buttons:
-			button.draw()
 #Level class
 
 class Game:
@@ -283,6 +305,8 @@ class Game:
 		self.cameraY= -_screenHeight/2
 		self.mousedown = False
 		self.currentLevel = Level(LEVELS[0])
+		self.GUI = GUI()
+		self.pause = False
 	def gameLoop(self):
 		firstMousedown = False
 		firstMouseup = False
@@ -296,18 +320,32 @@ class Game:
 				
 		for key in allKeysUsed:
 			KEYSTATES[key]= isKeyDown(key)
-				
-		canNotMoves = self.currentLevel.handleObjects(self.man.x,self.man.y,self.cameraX,self.cameraY)
-				
-		if firstMouseup:
-			self.currentLevel.handleMouseUp(self.man.x,self.man.y,self.cameraX,self.cameraY)
-				
+		
+		if not self.pause:
+			canNotMoves = self.currentLevel.handleObjects(self.man.x,self.man.y,self.cameraX,self.cameraY)
+		
+		self.GUI.update(self.pause)
 		self.currentLevel.drawLevel(self.cameraX,self.cameraY)
 		self.man.draw(self.cameraX, self.cameraY)
-				
-		self.man.move(canNotMoves,self.cameraX,self.cameraY)
-				
-				
+		self.GUI.draw(50,50)
+		
+		if self.pause:
+			useColour(0,0,0,130)
+			drawRectangle(0,0,_screenWidth,_screenHeight)
+			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
+			
+		else:
+			self.man.move(canNotMoves,self.cameraX,self.cameraY)
+		self.GUI.drawButtons()	
+		
+		if firstMouseup:
+			returnValue,overButtons = self.GUI.handleMouseUp()
+			if returnValue == 'pause':
+				self.pause = True
+			if returnValue == 'unpause':
+				self.pause = False
+			if not self.pause:
+				self.currentLevel.handleMouseUp(overButtons,self.man.x,self.man.y,self.cameraX,self.cameraY)
 				
 		if self.man.x-self.cameraX > (_screenWidth-CAMERASLACKX) or self.man.x-self.cameraX < CAMERASLACKX:
 			self.cameraX+=self.man.speedx
@@ -315,7 +353,7 @@ class Game:
 		if self.man.y-self.cameraY > (_screenHeight-CAMERASLACKY) or self.man.y-self.cameraY < CAMERASLACKY:
 			self.cameraY+=self.man.speedy
 						
-LEVELS= [{"BUTTONS":[Button(0,_screenHeight-35,100,'pause',PAUSE)],"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
+LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
 
 game = Game()
 while True:
