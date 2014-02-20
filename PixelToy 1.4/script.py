@@ -40,6 +40,9 @@ allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q
 RED = (255, 0 , 0 ,255)
 GREEN = ( 0 ,255, 0 ,255)
 BLACK = ( 0 , 0 , 0 ,255)
+BLUE = (0, 0 , 255 ,255)
+GREY = (64,64,64,255)
+WHITE = (255,255,255,255)
 
 #Utilities
 class Rect:
@@ -197,10 +200,10 @@ class Player:
 		self.speedy = 0
 		self.acceleration = 0.3
 		self.inAttack = False
-		self.maxHealth = 200
-		self.maxMana = 100
-		self.health = self.maxHealth 
-		self.mana = self.maxMana
+		self.maxHealth = 200.0
+		self.maxMana = 100.0
+		self.health = 56.0
+		self.mana = 89.0
 		self.animspeed = 0
 		self.isMoving = False
 	def move(self,canNotMoves,cameraX,cameraY):
@@ -296,11 +299,20 @@ class GUI:
 	def drawButtons(self):
 		for button in self.buttons:
 			button.draw()
-	def draw(self,healthRatio,manaRatio):
+	def draw(self,health,mana,maxHealth,maxMana):
 		barWidth = _screenWidth/3
-		useColourList(BLACK)
-		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-17,barWidth,17)
-		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-35,barWidth,17)
+		useColourList(GREY)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-19,barWidth,17)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-37,barWidth,17)
+
+		useColourList(RED)
+		drawRectangle(_screenWidth/2-barWidth/2+3, _screenHeight-17, health/maxHealth*(barWidth-4), 13)
+		useColourList(BLUE)
+		drawRectangle(_screenWidth/2-barWidth/2+2,_screenHeight-35,mana/maxMana*(barWidth-4), 13)
+
+		useColourList(WHITE)
+		drawString(_screenWidth/2-len(str(int(health)))*6,_screenHeight-18,str(int(health)))
+		drawString(_screenWidth/2-len(str(int(mana)))*6,_screenHeight-36,str(int(mana)))
 #GOOEY class
 
 #Level Up! class
@@ -321,7 +333,7 @@ class Level:
 				projectile.move()
 				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
 					del self.proj[i]
-			return canNotMoves
+		return canNotMoves
 
 	def handleMouseUp(self,overButton,manX,manY,cameraX,cameraY):		
 		if not overButton:
@@ -366,7 +378,7 @@ class Game:
 		self.GUI.update(self.pause)
 		self.currentLevel.drawLevel(self.cameraX,self.cameraY)
 		self.man.draw(self.cameraX, self.cameraY)
-		self.GUI.draw(50,50)
+		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
 		
 		if self.pause:
 			useColour(0,0,0,130)
