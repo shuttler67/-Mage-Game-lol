@@ -11,6 +11,7 @@ backgroundHeight = 384
 manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
 
 still = loadImage('res/postmanstill.png')
+still2 = loadImage('res/postmanstill2.png')
 charge1 = loadImage('res/postmancharge1.png')
 charge2 = loadImage('res/postmancharge2.png')
 walk1 = loadImage('res/postmanwalk1.png')
@@ -201,6 +202,7 @@ class Player:
 		self.health = self.maxHealth
 		self.animspeed = 0
 		self.isMoving = False
+		self.isFacing = [UP,LEFT,RIGHT]
 	def move(self,canNotMoves,cameraX,cameraY):
 		self.directions = []
 		if self.inAttack:
@@ -216,17 +218,20 @@ class Player:
 			self.speedy -= self.acceleration
 		if KEYSTATES['d']:
 			self.speedx += self.acceleration
-				
+			
 		if KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']:
 			self.isMoving=True
 		else: 
 			self.isMoving=False
+			
 		self.speedx *= 0.9
 		self.speedy *= 0.9
 		if self.speedx > 0:
 			self.directions.append(RIGHT)
+			self.isFacing.append(RIGHT)
 		if self.speedx < 0:
 			self.directions.append(LEFT)
+			self.isFacing.append(LEFT)
 		if self.speedy > 0:
 			self.directions.append(UP)
 		if self.speedy < 0:
@@ -242,8 +247,6 @@ class Player:
 		self.x += self.speedx
 		self.y += self.speedy
 		
-	def search(self):
-		
 				
 	def draw(self,cameraX,cameraY):
 		
@@ -255,22 +258,29 @@ class Player:
 				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if self.animspeed>60:
 				self.animspeed=0
-		elif self.isMoving:
-			self.animspeed+=1
-			if RIGHT in self.directions:
-				if self.animspeed<15:
-					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-				else:
-					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if LEFT in self.directions:
-				if self.animspeed<15:
-					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-				else:
-					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if self.animspeed>30:
-				self.animspeed=0
 		else:
-			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.isMoving:
+				self.animspeed+=1
+				if RIGHT in self.directions:
+					if self.animspeed<15:
+						drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+					else:
+						drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				if LEFT in self.directions:
+					if self.animspeed<15:
+						drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+					else:
+						drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				if self.animspeed>30:
+					self.animspeed=0
+			else:
+				if self.isFacing.count(LEFT)>1:
+					if self.isFacing.index(LEFT)==1:
+						drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+				if self.isFacing.count(RIGHT)>1:	
+					if self.isFacing.index(RIGHT)==1:
+						drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+
 #Player class
 
 #Level Up! class
