@@ -207,7 +207,8 @@ class Player:
 		self.mana = 89.0
 		self.animspeed = 0
 		self.isMoving = False
-		self.isFacing = [UP,LEFT,RIGHT]
+		self.isFacing = [UP,RIGHT,LEFT,DOWN]
+		self.inList = (self.isFacing.count(LEFT)+self.isFacing.count(RIGHT))
 	def move(self,canNotMoves,cameraX,cameraY):
 		self.directions = []
 		if self.inAttack:
@@ -233,10 +234,10 @@ class Player:
 		self.speedy *= 0.9
 		if self.speedx > 0:
 			self.directions.append(RIGHT)
-			self.isFacing.append(RIGHT)
+			self.isFacing.insert(0,RIGHT)
 		if self.speedx < 0:
 			self.directions.append(LEFT)
-			self.isFacing.append(LEFT)
+			self.isFacing.insert(0,LEFT)
 		if self.speedy > 0:
 			self.directions.append(UP)
 		if self.speedy < 0:
@@ -283,10 +284,10 @@ class Player:
 					self.animspeed=0
 			else:
 				if self.isFacing.count(LEFT)>1:
-					if self.isFacing.index(LEFT)==1:
+					if self.isFacing.index(LEFT)<1:
 						drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				if self.isFacing.count(RIGHT)>1:	
-					if self.isFacing.index(RIGHT)==1:
+					if self.isFacing.index(RIGHT)<1:
 						drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 
 #Player class
