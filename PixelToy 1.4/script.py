@@ -5,6 +5,7 @@ fireball = loadImage('res/Fireball.png')
 marblefloor = loadImage('res/marblefloor.png')
 buttonUp = loadImage('res/buttonUp.png')
 buttonDown = loadImage('res/buttonDown.png')
+mail4 = loadImage('res/mail4.png')
 backgroundWidth = 384
 backgroundHeight = 384
 
@@ -26,7 +27,7 @@ RIGHT = "right"
 LEFT  = "left"
 UP    = "up"
 DOWN  = "down"
-PAUSE = "pause"
+NIL = 'nil'
 
 MAXSPEED = 2.7
 MANSIZE = 60
@@ -40,6 +41,9 @@ allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q
 RED = (255, 0 , 0 ,255)
 GREEN = ( 0 ,255, 0 ,255)
 BLACK = ( 0 , 0 , 0 ,255)
+BLUE = (0, 0 , 255 ,255)
+GREY = (64,64,64,255)
+WHITE = (255,255,255,255)
 
 #Utilities
 class Rect:
@@ -189,7 +193,6 @@ class Enemy:
 
 #PLAY WITH MEEEEE class
 class Player:
-
 	def __init__(self):
 		self.x = 0
 		self.y = 0
@@ -198,8 +201,10 @@ class Player:
 		self.speedy = 0
 		self.acceleration = 0.3
 		self.inAttack = False
-		self.maxHealth = 200
-		self.health = self.maxHealth
+		self.maxHealth = 200.0
+		self.maxMana = 100.0
+		self.health = 56.0
+		self.mana = 89.0
 		self.animspeed = 0
 		self.isMoving = False
 		self.isFacing = [UP,LEFT,RIGHT]
@@ -247,6 +252,11 @@ class Player:
 		self.x += self.speedx
 		self.y += self.speedy
 		
+<<<<<<< HEAD
+=======
+	def search(self):
+		pass
+>>>>>>> 7c58db7907f5fb22200e1f32b920abbf053d38de
 				
 	def draw(self,cameraX,cameraY):
 		
@@ -283,13 +293,48 @@ class Player:
 
 #Player class
 
+#GUI class
+
+class GUI:
+	def __init__(self):
+		self.buttons = [Button(0,_screenHeight-35,100,'pause','pause')]
+	def update(self,pause):
+		if pause:
+			self.buttons = [Button(_screenWidth/2-100,_screenHeight/2,200,'resume game','unpause'),Button(_screenWidth/2-100,_screenHeight/2-35,200,'main menu',NIL)]
+		else:
+			self.buttons = [Button(0,_screenHeight-35,100,'pause','pause')]
+	def handleMouseUp(self):
+		returnValue = NIL
+		overButton = False
+		for button in self.buttons:
+			if button.isUnderMouse():
+				overButton = True
+				returnValue = button.returnValue
+		return returnValue, overButton
+	def drawButtons(self):
+		for button in self.buttons:
+			button.draw()
+	def draw(self,health,mana,maxHealth,maxMana):
+		barWidth = _screenWidth/3
+		useColourList(GREY)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-19,barWidth,17)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-37,barWidth,17)
+
+		useColourList(RED)
+		drawRectangle(_screenWidth/2-barWidth/2+3, _screenHeight-17, health/maxHealth*(barWidth-4), 13)
+		useColourList(BLUE)
+		drawRectangle(_screenWidth/2-barWidth/2+2,_screenHeight-35,mana/maxMana*(barWidth-4), 13)
+
+		useColourList(WHITE)
+		drawString(_screenWidth/2-len(str(int(health)))*6,_screenHeight-18,str(int(health)))
+		drawString(_screenWidth/2-len(str(int(mana)))*6,_screenHeight-36,str(int(mana)))
+#GOOEY class
+
 #Level Up! class
 class Level:
-
 	def __init__(self,levelDICT): 
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
-		self.buttons = levelDICT["BUTTONS"]
 		self.projSize = 3
 		self.proj = []
 	def handleObjects(self,manX,manY,cameraX,cameraY):
@@ -303,16 +348,12 @@ class Level:
 				projectile.move()
 				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
 					del self.proj[i]
-			return canNotMoves
+		return canNotMoves
 
-	def handleMouseUp(self,manX,manY,cameraX,cameraY):
-		overButton = False
-		for button in self.buttons:
-			if button.isUnderMouse():
-				overButton = True
-			if not overButton:
-				self.proj.append(Projectile())
-				self.proj[-1].update(self.projSize,True,manX,manY+MANSIZE/2+self.projSize/2,_mouseX+cameraX,_mouseY+cameraY)
+	def handleMouseUp(self,overButton,manX,manY,cameraX,cameraY):		
+		if not overButton:
+			self.proj.append(Projectile())
+			self.proj[-1].update(self.projSize,True,manX,manY+MANSIZE/2+self.projSize/2,_mouseX+cameraX,_mouseY+cameraY)
 	def drawLevel(self,cameraX,cameraY):
 		for i in range(0,9):
 			for j in range(0,9):
@@ -321,8 +362,6 @@ class Level:
 			wall.draw(cameraX,cameraY)
 		for projectile in self.proj:
 			projectile.draw(cameraX,cameraY)
-		for button in self.buttons:
-			button.draw()
 #Level class
 
 class Game:
@@ -332,6 +371,8 @@ class Game:
 		self.cameraY= -_screenHeight/2
 		self.mousedown = False
 		self.currentLevel = Level(LEVELS[0])
+		self.GUI = GUI()
+		self.pause = False
 	def gameLoop(self):
 		firstMousedown = False
 		firstMouseup = False
@@ -345,18 +386,32 @@ class Game:
 				
 		for key in allKeysUsed:
 			KEYSTATES[key]= isKeyDown(key)
-				
-		canNotMoves = self.currentLevel.handleObjects(self.man.x,self.man.y,self.cameraX,self.cameraY)
-				
-		if firstMouseup:
-			self.currentLevel.handleMouseUp(self.man.x,self.man.y,self.cameraX,self.cameraY)
-				
+		
+		if not self.pause:
+			canNotMoves = self.currentLevel.handleObjects(self.man.x,self.man.y,self.cameraX,self.cameraY)
+		
+		self.GUI.update(self.pause)
 		self.currentLevel.drawLevel(self.cameraX,self.cameraY)
 		self.man.draw(self.cameraX, self.cameraY)
-				
-		self.man.move(canNotMoves,self.cameraX,self.cameraY)
-				
-				
+		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
+		
+		if self.pause:
+			useColour(0,0,0,130)
+			drawRectangle(0,0,_screenWidth,_screenHeight)
+			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
+			
+		else:
+			self.man.move(canNotMoves,self.cameraX,self.cameraY)
+		self.GUI.drawButtons()	
+		
+		if firstMouseup:
+			returnValue,overButtons = self.GUI.handleMouseUp()
+			if returnValue == 'pause':
+				self.pause = True
+			if returnValue == 'unpause':
+				self.pause = False
+			if not self.pause:
+				self.currentLevel.handleMouseUp(overButtons,self.man.x,self.man.y,self.cameraX,self.cameraY)
 				
 		if self.man.x-self.cameraX > (_screenWidth-CAMERASLACKX) or self.man.x-self.cameraX < CAMERASLACKX:
 			self.cameraX+=self.man.speedx
@@ -364,7 +419,7 @@ class Game:
 		if self.man.y-self.cameraY > (_screenHeight-CAMERASLACKY) or self.man.y-self.cameraY < CAMERASLACKY:
 			self.cameraY+=self.man.speedy
 						
-LEVELS= [{"BUTTONS":[Button(0,_screenHeight-35,100,'pause',PAUSE)],"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
+LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
 
 game = Game()
 while True:
