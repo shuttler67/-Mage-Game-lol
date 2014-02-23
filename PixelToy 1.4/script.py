@@ -251,12 +251,10 @@ class Player:
 										
 		self.x += self.speedx
 		self.y += self.speedy
-		
-<<<<<<< HEAD
-=======
+
 	def search(self):
 		pass
->>>>>>> 7c58db7907f5fb22200e1f32b920abbf053d38de
+
 				
 	def draw(self,cameraX,cameraY):
 		
