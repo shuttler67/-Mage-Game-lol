@@ -2,12 +2,12 @@ import math
 
 epicface = loadImage('res/epicface.png')
 fireball = loadImage('res/Fireball.png')
-marblefloor = loadImage('res/marblefloor.png')
+floor = loadImage('res/floor.png')
 buttonUp = loadImage('res/buttonUp.png')
 buttonDown = loadImage('res/buttonDown.png')
-mail4 = loadImage('res/mail4.png')
-backgroundWidth = 384
-backgroundHeight = 384
+mails = ['res/mail4.png','res/mail1.png','res/mail2.png']
+backgroundWidth = 510
+backgroundHeight = 510
 
 manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
 
@@ -87,7 +87,6 @@ def drawImageRect(image,rect):
 
 #Button class
 class Button:
-
 	def __init__(self,x,y,width,text,returnValue):
 		self.rect = Rect(x,y,width,35)
 		self.text = text
@@ -137,9 +136,10 @@ class Wall:
 
 #Projectile class
 class Projectile:
-	def __init__(self,x,y,tx,ty):
+	def __init__(self,x,y,tx,ty,image):
 		self.projSpeed = 2.7
 		self.size = 3
+		self.image = image
 		self.x = x
 		self.y = y
 		radians = math.atan2(ty-self.y,tx-self.x)
@@ -150,13 +150,10 @@ class Projectile:
 		self.y += self.sine*self.projSpeed
 	def draw(self,cameraX,cameraY):
 		useColour(255,0,0,100)
-		fireball.rotate(-2)
-		drawImage(fireball,self.x-cameraX,self.y-cameraY,self.size*2,self.size*2)
+		self.image.rotate(1)
+		drawImage(self.image,self.x-cameraX,self.y-cameraY,self.size*20,self.size*20)
 	def checkIfOut(self,cameraX,cameraY):
-		if self.x-cameraX < -self.size or self.x-cameraX > _screenWidth+self.size or self.y-cameraY < -self.size or self.y-cameraY > _screenHeight+self.size:
-			return True
-		else:
-			return False
+		return self.x-cameraX < -self.size or self.x-cameraX > _screenWidth+self.size or self.y-cameraY < -self.size or self.y-cameraY > _screenHeight+self.size
 	def checkIfCollide(self,rect):
 		return rect.rectCollide(Rect(self.x,self.y,0,0))
 #Projectile class
@@ -281,9 +278,9 @@ class Player(Entity):
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 
 		else:
-			if self.facing == RIGHT:
-				drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if self.facing == LEFT:
+				drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			else:
 				drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 
 #Player class
@@ -344,13 +341,16 @@ class Level:
 					del self.proj[i]
 		return canNotMoves
 
-	def spawnProjectile(self,overButtons,manX,manY,cameraX,cameraY):		
+	def spawnProjectile(self,overButtons,manX,manY,cameraX,cameraY):
+		random1 = int(random()*len(mails))
+		mail = loadImage(mails[random1])
+	#
 		if not overButtons:
-			self.proj.append(Projectile(manX,manY,_mouseX+cameraX,_mouseY+cameraY))
+			self.proj.append(Projectile(manX,manY,_mouseX+cameraX,_mouseY+cameraY,mail))
 	def drawLevel(self,cameraX,cameraY):
 		for i in range(0,9):
 			for j in range(0,9):
-				drawImage(marblefloor, (j*backgroundWidth)-cameraX, (i*backgroundHeight)-cameraY, backgroundWidth,backgroundHeight)
+				drawImage(floor, (j*backgroundWidth)-cameraX, (i*backgroundHeight)-cameraY, backgroundWidth,backgroundHeight)
 		for wall in self.walls:
 			wall.draw(cameraX,cameraY)
 		for projectile in self.proj:
