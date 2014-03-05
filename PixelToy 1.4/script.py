@@ -12,6 +12,7 @@ backgroundHeight = 384
 manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
 
 still = loadImage('res/postmanstill.png')
+still2 = loadImage('res/postmanstill2.png')
 charge1 = loadImage('res/postmancharge1.png')
 charge2 = loadImage('res/postmancharge2.png')
 walk1 = loadImage('res/postmanwalk1.png')
@@ -39,9 +40,9 @@ allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q
 # Colours
 #		 R G B Alpha
 RED = (255, 0 , 0 ,255)
-GREEN = ( 0 ,255, 0 ,255)
+GREEN = ( 0 ,200, 30 ,255)
 BLACK = ( 0 , 0 , 0 ,255)
-BLUE = (0, 0 , 255 ,255)
+BLUE = (0, 0 , 200 ,255)
 GREY = (64,64,64,255)
 WHITE = (255,255,255,255)
 
@@ -183,32 +184,10 @@ class Entity:
 			self.speedx = 0
 		if self.speedy < 0.001:
 			self.speedy = 0
-		
+
 		self.speedy += accelerationY
 		self.speedx += accelerationX
-		
-		self.speedx *= 0.9
-		self.speedy *= 0.9 # friction
-		
-		self.directions = []
-		if self.speedx > 0:
-			self.directions.append(RIGHT)
-		if self.speedx < 0:
-			self.directions.append(LEFT)
-		if self.speedy > 0:
-			self.directions.append(UP)
-		if self.speedy < 0:
-			self.directions.append(DOWN)
-		for direction in self.directions:
-			for canNotMove in canNotMoves:
-				if canNotMove == direction:
-					if canNotMove == UP or canNotMove == DOWN:
-						self.speedy = 0.0
-					if canNotMove == RIGHT or canNotMove == LEFT:
-						self.speedx = 0.0
-
-		self.x += self.speedx
-		self.y += self.speedy
+						
 #Enemies
 class Enemy(Entity):
 	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage):	
@@ -261,9 +240,9 @@ class Player(Entity):
 		self.isMoving = KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']
 
 		Entity.move(self,canNotMoves,accelerationX,accelerationY)
+
 	def search(self):
-		pass
-				
+		pass		
 	def draw(self,cameraX,cameraY):
 		global FRAMECOUNT
 		if self.inAttack:
@@ -282,8 +261,12 @@ class Player(Entity):
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+
 		else:
 			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+
+			drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+
 #Player class
 
 #GUI class
