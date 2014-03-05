@@ -33,6 +33,7 @@ MANSIZE = 60
 CAMERASLACKX=250
 CAMERASLACKY=200
 KEYSTATES ={}
+FRAMECOUNT = 0
 allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','shift','tab','space','escape')
 
 # Colours
@@ -166,68 +167,30 @@ class Projectile:
 			return False
 #Projectile class
 
-#Enemies
-class Enemy:
-	def __init__(self,maxHealth,x,y,detectRange,size,minAttackDamage,maxAttackDamage):	
-		self.maxHealth = maxHealth-10+random()*10
-		self.health = self.maxHealth
+
+class Entity:
+	def __init__(self,maxHealth,x,y,size):
 		self.x = x
 		self.y = y
 		self.speedx = 0
 		self.speedy = 0
-		self.detectRange = detectRange
 		self.size = size
-		self.minAttackDamage = minAttackDamage
-		self.maxAttackDamage = maxAttackDamage
-	def touchAttack(self,player):
-		if math.hypot(player.x-self.x,player.y-self.y) < (player.size+self.size)/2:
-			player.speedx = (player.x-self.x)*-1
-			player.speedy = (player.y-self.y)*-1
-			self.speedx = 0
-			self.speedy = 0
-			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
-						
-						
-#Enemies
-
-#PLAY WITH MEEEEE class
-class Player:
-	def __init__(self):
-		self.x = 0
-		self.y = 0
-		self.rect = Rect(self.x,self.y,MANSIZE,MANSIZE)
-		self.speedx = 0
-		self.speedy = 0
-		self.acceleration = 0.3
-		self.inAttack = False
-		self.maxHealth = 200.0
-		self.maxMana = 100.0
-		self.health = 56.0
-		self.mana = 89.0
-		self.animspeed = 0
-		self.isMoving = False
-	def move(self,canNotMoves,cameraX,cameraY):
+		self.maxHealth = maxHealth
+		self.health = self.maxHealth
 		self.directions = []
-		if self.inAttack:
-			self.acceleration = 0.1
-		else:
-			self.acceleration = 0.3
-				
-		if KEYSTATES['w']:
-			self.speedy += self.acceleration
-		if KEYSTATES['a']:
-			self.speedx -= self.acceleration
-		if KEYSTATES['s']:
-			self.speedy -= self.acceleration
-		if KEYSTATES['d']:
-			self.speedx += self.acceleration
-				
-		if KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']:
-			self.isMoving=True
-		else: 
-			self.isMoving=False
+	def move(self,canNotMoves,accelerationX,accelerationY):
+		if self.speedx < 0.001:
+			self.speedx = 0
+		if self.speedy < 0.001:
+			self.speedy = 0
+		
+		self.speedy += accelerationY
+		self.speedx += accelerationX
+		
 		self.speedx *= 0.9
-		self.speedy *= 0.9
+		self.speedy *= 0.9 # friction
+		
+		self.directions = []
 		if self.speedx > 0:
 			self.directions.append(RIGHT)
 		if self.speedx < 0:
@@ -243,37 +206,82 @@ class Player:
 						self.speedy = 0.0
 					if canNotMove == RIGHT or canNotMove == LEFT:
 						self.speedx = 0.0
-										
+
 		self.x += self.speedx
 		self.y += self.speedy
+#Enemies
+class Enemy(Entity):
+	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage):	
+		Entity.__init__(self,maxHealth-10+random()*10,x,y,size)
+		self.minAttackDamage = minAttackDamage
+		self.maxAttackDamage = maxAttackDamage
+		self.isWandering = True
+	def wander():
+		global FRAMECOUNT
 		
+class meleeEnemy(Enemy):
+	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage,knockback):	
+		Enemy.__init__(self,maxHealth-10+random()*10,x,y,size,minAttackDamage,maxAttackDamage)
+		self.knockback = knockback
+	def touchAttack(self,player):
+		if math.hypot(player.x-self.x,player.y-self.y) < (player.size+self.size)/2:
+			player.speedx = (player.x-self.x)*-self.knockback
+			player.speedy = (player.y-self.y)*-self.knockback
+			self.speedx = 0
+			self.speedy = 0
+			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
+#Enemies
+
+#PLAY WITH MEEEEE class
+class Player(Entity):
+	def __init__(self):
+		Entity.__init__(self,200.0,0,0,MANSIZE)
+		self.inAttack = False
+		self.maxMana = 100.0
+		self.mana = self.maxMana
+		self.isMoving = False
+#	def 
+	def move(self,canNotMoves):
+		accelerationY = 0
+		accelerationX = 0
+		if self.inAttack:
+			movement = 0.1
+		else:
+			movement = 0.3
+				
+		if KEYSTATES['w']:
+			accelerationY += movement
+		if KEYSTATES['a']:
+			accelerationX -= movement
+		if KEYSTATES['s']:
+			accelerationY -= movement
+		if KEYSTATES['d']:
+			accelerationX += movement
+
+		self.isMoving = KEYSTATES['w'] or KEYSTATES['a'] or KEYSTATES['s'] or KEYSTATES['d']
+
+		Entity.move(self,canNotMoves,accelerationX,accelerationY)
 	def search(self):
 		pass
 				
 	def draw(self,cameraX,cameraY):
-		
+		global FRAMECOUNT
 		if self.inAttack:
-			self.animspeed+=1
-			if self.animspeed<30:
+			if FRAMECOUNT%60<30:
 				drawImage(charge1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			else:
 				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if self.animspeed>60:
-				self.animspeed=0
 		elif self.isMoving:
-			self.animspeed+=1
 			if RIGHT in self.directions:
-				if self.animspeed<15:
+				if FRAMECOUNT%30>15:
 					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if LEFT in self.directions:
-				if self.animspeed<15:
+				if FRAMECOUNT%30<15:
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if self.animspeed>30:
-				self.animspeed=0
 		else:
 			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 #Player class
@@ -386,7 +394,7 @@ class Game:
 			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
 			
 		else:
-			self.man.move(canNotMoves,self.cameraX,self.cameraY)
+			self.man.move(canNotMoves)
 		self.GUI.drawButtons()	
 		
 		if firstMouseup:
@@ -409,6 +417,7 @@ LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
 game = Game()
 while True:
 	newFrame()
+	FRAMECOUNT += 1
 	game.gameLoop()
 								
 
