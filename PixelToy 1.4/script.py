@@ -137,35 +137,28 @@ class Wall:
 
 #Projectile class
 class Projectile:
-	def __init__(self):
-		self.notIdle = False
-		self.projSpeed = 2
-	def update(self,size,notIdle,x,y,tx,ty):
+	def __init__(self,x,y,tx,ty):
+		self.projSpeed = 2.7
+		self.size = 3
 		self.x = x
 		self.y = y
-		self.a = ty-self.y
-		self.b = tx-self.x
-		self.d = math.hypot(self.b,self.a)
-		self.notIdle = notIdle
-		self.size = size
+		radians = math.atan2(ty-self.y,tx-self.x)
+		self.cosine = math.cos(radians)
+		self.sine   = math.sin(radians)
 	def move(self):
-		if self.notIdle:
-			self.x += self.b/self.d*self.projSpeed
-			self.y += self.a/self.d*self.projSpeed
+		self.x += self.cosine*self.projSpeed
+		self.y += self.sine*self.projSpeed
 	def draw(self,cameraX,cameraY):
 		useColour(255,0,0,100)
 		fireball.rotate(-2)
 		drawImage(fireball,self.x-cameraX,self.y-cameraY,self.size*2,self.size*2)
 	def checkIfOut(self,cameraX,cameraY):
-		if self.x-cameraX < -self.size or self.x-cameraX > _screenWidth+self.size or self.y-cameraY < -self.size or self.y-cameraY > _screenHeight+self.size and self.notIdle:
+		if self.x-cameraX < -self.size or self.x-cameraX > _screenWidth+self.size or self.y-cameraY < -self.size or self.y-cameraY > _screenHeight+self.size:
 			return True
 		else:
 			return False
 	def checkIfCollide(self,rect):
-		if rect.rectCollide(Rect(self.x,self.y,0,0)) and self.notIdle:
-			return True
-		else:
-			return False
+		return rect.rectCollide(Rect(self.x,self.y,0,0))
 #Projectile class
 
 
@@ -180,14 +173,33 @@ class Entity:
 		self.health = self.maxHealth
 		self.directions = []
 	def move(self,canNotMoves,accelerationX,accelerationY):
-		if self.speedx < 0.001:
+		if self.speedx < 0.001 and self.speedx > -0.001 and self.speedx != 0:
 			self.speedx = 0
-		if self.speedy < 0.001:
+		if self.speedy < 0.001 and self.speedy > -0.001 and self.speedx != 0:
 			self.speedy = 0
-
+		
+		self.speedy *= 0.9
+		self.speedx *= 0.9
 		self.speedy += accelerationY
 		self.speedx += accelerationX
-						
+		self.directions = []
+		if self.speedx > 0:
+			self.directions.append(RIGHT)
+		if self.speedx < 0:
+			self.directions.append(LEFT)
+		if self.speedy > 0:
+			self.directions.append(UP)
+		if self.speedy < 0:
+			self.directions.append(DOWN)
+		for direction in self.directions:
+			for canNotMove in canNotMoves:
+				if canNotMove == direction:
+					if canNotMove == UP or canNotMove == DOWN:
+						self.speedy = 0.0
+					if canNotMove == RIGHT or canNotMove == LEFT:
+						self.speedx = 0.0		
+		self.x += self.speedx
+		self.y += self.speedy
 #Enemies
 class Enemy(Entity):
 	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage):	
@@ -219,6 +231,7 @@ class Player(Entity):
 		self.maxMana = 100.0
 		self.mana = self.maxMana
 		self.isMoving = False
+		self.facing = RIGHT
 #	def 
 	def move(self,canNotMoves):
 		accelerationY = 0
@@ -245,27 +258,33 @@ class Player(Entity):
 		pass		
 	def draw(self,cameraX,cameraY):
 		global FRAMECOUNT
+		if self.facing == RIGHT and LEFT in self.directions:
+			self.facing = LEFT
+		if self.facing == LEFT and RIGHT in self.directions:
+			self.facing = RIGHT
+			
 		if self.inAttack:
 			if FRAMECOUNT%60<30:
 				drawImage(charge1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			else:
 				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 		elif self.isMoving:
-			if RIGHT in self.directions:
+			if self.facing == RIGHT:
 				if FRAMECOUNT%30>15:
 					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if LEFT in self.directions:
+			if self.facing == LEFT:
 				if FRAMECOUNT%30<15:
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 
 		else:
-			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-
-			drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.facing == RIGHT:
+				drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
+			if self.facing == LEFT:
+				drawImage(still2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 
 #Player class
 
@@ -311,7 +330,6 @@ class Level:
 	def __init__(self,levelDICT): 
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
-		self.projSize = 3
 		self.proj = []
 	def handleObjects(self,manX,manY,cameraX,cameraY):
 		canNotMoves = []			
@@ -326,10 +344,9 @@ class Level:
 					del self.proj[i]
 		return canNotMoves
 
-	def handleMouseUp(self,overButton,manX,manY,cameraX,cameraY):		
-		if not overButton:
-			self.proj.append(Projectile())
-			self.proj[-1].update(self.projSize,True,manX,manY+MANSIZE/2+self.projSize/2,_mouseX+cameraX,_mouseY+cameraY)
+	def spawnProjectile(self,overButtons,manX,manY,cameraX,cameraY):		
+		if not overButtons:
+			self.proj.append(Projectile(manX,manY,_mouseX+cameraX,_mouseY+cameraY))
 	def drawLevel(self,cameraX,cameraY):
 		for i in range(0,9):
 			for j in range(0,9):
@@ -387,7 +404,7 @@ class Game:
 			if returnValue == 'unpause':
 				self.pause = False
 			if not self.pause:
-				self.currentLevel.handleMouseUp(overButtons,self.man.x,self.man.y,self.cameraX,self.cameraY)
+				self.currentLevel.spawnProjectile(overButtons,self.man.x,self.man.y,self.cameraX,self.cameraY)
 				
 		if self.man.x-self.cameraX > (_screenWidth-CAMERASLACKX) or self.man.x-self.cameraX < CAMERASLACKX:
 			self.cameraX+=self.man.speedx
