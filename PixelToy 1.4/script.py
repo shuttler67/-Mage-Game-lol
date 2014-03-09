@@ -5,11 +5,10 @@ fireball = loadImage('res/Fireball.png')
 floor = loadImage('res/floor.png')
 buttonUp = loadImage('res/buttonUp.png')
 buttonDown = loadImage('res/buttonDown.png')
-mails = ['res/mail4.png','res/mail1.png','res/mail2.png']
+mails = ['res/mail4.png','res/mail1.png','res/mail2.png','res/mail5.png','res/mail6.png']
+mail4=loadImage('res/postcard.png')
 backgroundWidth = 510
 backgroundHeight = 510
-
-manimations = {"still":1,"charge1":2,"charge2":3,"walk1":4,"walk2":5}
 
 still = loadImage('res/postmanstill.png')
 still2 = loadImage('res/postmanstill2.png')
@@ -19,9 +18,6 @@ walk1 = loadImage('res/postmanwalk1.png')
 walk2 = loadImage('res/postmanwalk2.png')
 walk3 = loadImage('res/postmanwalk3.png')
 walk4 = loadImage('res/postmanwalk4.png')
-manwalk = (walk1,walk2)
-mancharge = (charge1,charge2)
-manstill = (still)
 
 RIGHT = "right"
 LEFT  = "left"
