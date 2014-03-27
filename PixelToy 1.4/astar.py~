@@ -27,8 +27,8 @@ class AStar:
 		goal = Node(*goal,'none')
 		openNodes = [start]
 		closedNodes = []
-	def recoverPath(self):
-		path = [self.goal]
+	def recoverPath(self,end):
+		path = [end]
 		while not path[0].compareNodePos(start):
 			path.insert(0,path[0].cameFrom)
 		return path
