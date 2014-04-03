@@ -29,11 +29,9 @@ class Platform:
 		self.length = length
 		self.lengthCoord = self.x+length
 		self.heightCoord = self.y+10
-
 	def isOnTop(self,manx,many):
 		manLength = manx+32
 		return (manx < self.lengthCoord and manx > self.x and many <= self.heightCoord and many > self.y or manLength < self.lengthCoord and manLength > self.x and many <= self.heightCoord and many > self.y)
-
 	def draw(self,camerax):
 		useColour(0,200,0,255)
 		drawRectangle(self.x+camerax,self.y,self.length,10)
