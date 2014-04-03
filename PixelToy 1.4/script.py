@@ -263,16 +263,16 @@ class Player:
 		elif self.isMoving:
 			self.animspeed+=1
 			if RIGHT in self.directions:
-				if self.animspeed<15:
+				if self.animspeed<12:
 					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if LEFT in self.directions:
-				if self.animspeed<15:
+				if self.animspeed<12:
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if self.animspeed>30:
+			if self.animspeed>24:
 				self.animspeed=0
 		else:
 			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)

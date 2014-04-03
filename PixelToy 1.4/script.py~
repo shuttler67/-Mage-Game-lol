@@ -263,16 +263,16 @@ class Player:
 		elif self.isMoving:
 			self.animspeed+=1
 			if RIGHT in self.directions:
-				if self.animspeed<15:
+				if self.animspeed<11:
 					drawImage(walk3,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk4,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			if LEFT in self.directions:
-				if self.animspeed<15:
+				if self.animspeed<11:
 					drawImage(walk1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 				else:
 					drawImage(walk2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
-			if self.animspeed>30:
+			if self.animspeed>22:
 				self.animspeed=0
 		else:
 			drawImage(still,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
@@ -311,8 +311,8 @@ class GUI:
 		drawRectangle(_screenWidth/2-barWidth/2+2,_screenHeight-35,mana/maxMana*(barWidth-4), 13)
 
 		useColourList(WHITE)
-		drawString(_screenWidth/2-len(str(health))*6,_screenHeight-18,str(int(health)))
-		drawString(_screenWidth/2-len(str(mana))*6,_screenHeight-36,str(int(mana)))
+		drawString(_screenWidth/2-len(str(int(health)))*6,_screenHeight-18,str(int(health)))
+		drawString(_screenWidth/2-len(str(int(mana)))*6,_screenHeight-36,str(int(mana)))
 #GOOEY class
 
 #Level Up! class
