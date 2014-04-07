@@ -46,7 +46,7 @@ class AStar:
 			path.append((node.worldx, node.worldy))
 		
 		return path
-
+	
 	def findPath(self, start, goal, canMoveTo):
 		self.start = AStar.Node(*start)
 		self.goal = AStar.Node(*goal)

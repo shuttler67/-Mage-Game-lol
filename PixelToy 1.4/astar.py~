@@ -1,7 +1,7 @@
 
 
 class AStar:
-	def __init__():
+	def __init__(self):
 		pass
 	@staticmethod
 	def estimateHeuristicTo(goal, node):

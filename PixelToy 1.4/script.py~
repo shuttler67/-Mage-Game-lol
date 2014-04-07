@@ -1,7 +1,5 @@
 #!/git/-Mage-Game-lol/PixelToy\ 1.4
 
-import sys
-print sys.path
 import math
 
 from astar import *
@@ -85,21 +83,24 @@ class Wall:
 class Projectile:
 	def __init__(self,x,y,tx,ty,image):
 		self.projSpeed = 2.7
-		self.size = 3
+		if round(random()) == 0:
+			spin = -10
+		else: spin = 10
+		self.rotateSpeed = spin
+		self.size = 20
 		self.image = image
 		self.image.setRotation(int(random()*360))
 		self.x = x
 		self.y = y
-		radians = math.atan2(ty-self.y,tx-self.x)
-		self.cosine = math.cos(radians)
-		self.sine   = math.sin(radians)
+		self.cosine, self.sine = findTrajectory(self.x,self.y,tx,ty)
 	def move(self):
 		self.x += self.cosine*self.projSpeed
 		self.y += self.sine*self.projSpeed
-	def draw(self,cameraX,cameraY):
+	def draw(self,cameraX,cameraY,pause):
 		useColour(255,0,0,100)
-		self.image.rotate(5)
-		drawImage(self.image,self.x-cameraX,self.y-cameraY,self.size*20,self.size*20)
+		if not pause:
+			self.image.rotate(self.rotateSpeed) 
+		drawImage(self.image,self.x-cameraX,self.y-cameraY,self.size,self.size)
 	def checkIfOut(self,cameraX,cameraY):
 		return self.x-cameraX < -self.size or self.x-cameraX > _screenWidth+self.size or self.y-cameraY < -self.size or self.y-cameraY > _screenHeight+self.size
 	def checkIfCollide(self,rect):
@@ -147,25 +148,70 @@ class Entity:
 		self.y += self.speedy
 #Enemies
 class Enemy(Entity):
-	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage):	
+	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage,radar):	
 		Entity.__init__(self,maxHealth-10+random()*10,x,y,size)
 		self.minAttackDamage = minAttackDamage
 		self.maxAttackDamage = maxAttackDamage
+		self.radar = radar
+		self.astar = AStar()
 		self.isWandering = True
-	def wander():
+
+	def followPath(self, path = None):
+		if path != None:
+			self.pathIter = iter(path)
+			node = self.pathIter.next()
+			self.currentNode = (node[0]*30,node[1]*30)
+		if circleVScircle(self.currentNode[0],self.currentNode[1],25,self.x,self.y,0):
+			self.currentNode = self.pathIter.next()
+		
+		self.walkTowards(self.currentNode)
+		
+	def wander(self):
 		global FRAMECOUNT
+
+	def update(self,playerPos,canMoveTo):
+		#global FRAMECOUNT
+		if circleVScircle(playerPos[0],playerPos[1],MANSIZE/2,self.x,self.y,self.radar):
+			if self.isWandering:
+				path = self.astar.findPath((int(self.x/30),int(self.y/30)),(int(playerPos[0]/30),int(playerPos[1]/30)),canMoveTo)
+				self.followPath(path)
+				self.isWandering = False
+			elif FRAMECOUNT%15 == 0:
+				path = self.astar.findPath((int(self.x/30),int(self.y/30)),(int(playerPos[0]/30),int(playerPos[1]/30)),canMoveTo)
+				self.followPath(path)
+			else:
+				self.followPath()
+		else:
+			self.isWandering = True
+			self.wander()
+
+	def walkTowards(self,posTuple):
+		cos, sin = findTrajectory(self.x,self.y,*posTuple)
+		Entity.move(self,[],cos*0.2,sin*0.2)
+
+	def draw(self,cameraX, cameraY):
+		useColourList(GREY)
+		drawRectangle(self.x-cameraX-self.size/2,self.y-cameraY+self.size/2,self.size,10)
+		useColourList(RED)
+		drawRectangle(self.x-cameraX-self.size/2+2,self.y-cameraY+self.size/2+2, self.health/self.maxHealth*(self.size-4), 6)
 		
 class meleeEnemy(Enemy):
-	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage,knockback):	
-		Enemy.__init__(self,maxHealth-10+random()*10,x,y,size,minAttackDamage,maxAttackDamage)
+	def __init__(self,maxHealth,x,y,size,minAttackDamage,maxAttackDamage,knockback,radar):	
+		Enemy.__init__(self,maxHealth-10+random()*10,x,y,size,minAttackDamage,maxAttackDamage,radar)
 		self.knockback = knockback
 	def touchAttack(self,player):
-		if math.hypot(player.x-self.x,player.y-self.y) < (player.size+self.size)/2:
-			player.speedx = (player.x-self.x)*-self.knockback
-			player.speedy = (player.y-self.y)*-self.knockback
+		if circleVScircle(player.x,player.y,MANSIZE/2,self.x,self.y,self.size/2):
+			player.speedx = (player.x-self.x)*self.knockback
+			player.speedy = (player.y-self.y)*self.knockback
 			self.speedx = 0
 			self.speedy = 0
 			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
+			self.isWandering = True
+	def draw(self,cameraX, cameraY):
+		drawImage(epicface,self.x-cameraX,self.y-cameraY,self.size,self.size)
+		Enemy.draw(self,cameraX, cameraY)
+		
+	
 #Enemies
 
 #PLAY WITH MEEEEE class
@@ -199,8 +245,6 @@ class Player(Entity):
 
 		Entity.move(self,canNotMoves,accelerationX,accelerationY)
 
-	def search(self):
-		pass		
 	def draw(self,cameraX,cameraY):
 		global FRAMECOUNT
 		if self.facing == RIGHT and LEFT in self.directions:
@@ -209,7 +253,7 @@ class Player(Entity):
 			self.facing = RIGHT
 			
 		if self.inAttack:
-			if FRAMECOUNT%60<30:
+			if FRAMECOUNT%30<15:
 				drawImage(charge1,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
 			else:
 				drawImage(charge2,self.x-cameraX,self.y-cameraY,MANSIZE,MANSIZE)
@@ -276,17 +320,26 @@ class Level:
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
 		self.proj = []
-	def handleObjects(self,manX,manY,cameraX,cameraY):
-		canNotMoves = []			
-			
+	@staticmethod
+	def canNotMove(node):
+		return True
+	def handleObjects(self,player,cameraX,cameraY):
+		canNotMoves = []		
+				
 		for wall in self.walls:
-			canNotMoves += wall.playerCollide(manX,manY,MANSIZE)
-			for j in range(len(self.proj), 0, -1):
-				i = j-1
+			canNotMoves += wall.playerCollide(player.x,player.y,MANSIZE)
+			for i in range(len(self.proj)-1, -1, -1):
 				projectile = self.proj[i]
 				projectile.move()
 				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
 					del self.proj[i]
+		for enemy in self.enemies:
+			enemy.touchAttack(player)
+			for i in range(len(self.proj)-1, -1, -1):
+				if circleVScircle(self.proj[i].x,self.proj[i].y,self.proj[i].size/2,enemy.x,enemy.y,enemy.size/2):
+					del self.proj[i]
+					enemy.health -= random()*(10-5)+5
+			enemy.update((player.x,player.y),self.canNotMove)
 		return canNotMoves
 
 	def spawnProjectile(self,overButtons,manX,manY,cameraX,cameraY):
@@ -295,14 +348,18 @@ class Level:
 	#
 		if not overButtons:
 			self.proj.append(Projectile(manX,manY,_mouseX+cameraX,_mouseY+cameraY,mail))
-	def drawLevel(self,cameraX,cameraY):
+	def drawLevel(self,cameraX,cameraY,pause):
 		for i in range(0,9):
 			for j in range(0,9):
 				drawImage(floor, (j*backgroundWidth)-cameraX, (i*backgroundHeight)-cameraY, backgroundWidth,backgroundHeight)
 		for wall in self.walls:
 			wall.draw(cameraX,cameraY)
+
 		for projectile in self.proj:
-			projectile.draw(cameraX,cameraY)
+			projectile.draw(cameraX,cameraY,pause)
+
+		for enemy in self.enemies:
+			enemy.draw(cameraX,cameraY)
 #Level class
 
 class Game:
@@ -314,7 +371,13 @@ class Game:
 		self.currentLevel = Level(LEVELS[0])
 		self.GUI = GUI()
 		self.pause = False
-	def gameLoop(self):
+	def gameLoop(self):	
+		for key in allKeysUsed:
+			KEYSTATES[key]= isKeyDown(key)
+		self.update()
+		self.draw()
+
+	def update(self):
 		firstMousedown = False
 		firstMouseup = False
 			
@@ -324,27 +387,14 @@ class Game:
 		if not isLeftMouseDown() and self.mousedown:
 			firstMouseup = True
 			self.mousedown = False
-				
-		for key in allKeysUsed:
-			KEYSTATES[key]= isKeyDown(key)
-		
+
 		if not self.pause:
-			canNotMoves = self.currentLevel.handleObjects(self.man.x,self.man.y,self.cameraX,self.cameraY)
-		
-		self.GUI.update(self.pause)
-		self.currentLevel.drawLevel(self.cameraX,self.cameraY)
-		self.man.draw(self.cameraX, self.cameraY)
-		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
-		
-		if self.pause:
-			useColour(0,0,0,130)
-			drawRectangle(0,0,_screenWidth,_screenHeight)
-			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
-			
-		else:
+			canNotMoves = self.currentLevel.handleObjects(self.man,self.cameraX,self.cameraY)
+			self.man.inAttack = self.mousedown
 			self.man.move(canNotMoves)
-		self.GUI.drawButtons()	
-		
+
+		self.GUI.update(self.pause)
+
 		if firstMouseup:
 			returnValue,overButtons = self.GUI.handleMouseUp()
 			if returnValue == 'pause':
@@ -359,14 +409,28 @@ class Game:
 								
 		if self.man.y-self.cameraY > (_screenHeight-CAMERASLACKY) or self.man.y-self.cameraY < CAMERASLACKY:
 			self.cameraY+=self.man.speedy
-						
-LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[0,1]}]
+	def draw(self):
+		self.currentLevel.drawLevel(self.cameraX,self.cameraY,self.pause)
+		self.man.draw(self.cameraX, self.cameraY)
+		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
+		
+		if self.pause:
+			useColour(0,0,0,130)
+			drawRectangle(0,0,_screenWidth,_screenHeight)
+			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
+			
+		self.GUI.drawButtons()	
+		
+		
+#Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
+LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[meleeEnemy(100,300,300,60,5,20,0.1,500)]}]
 
 game = Game()
 while True:
 	PREVIOUSscreenHeight = _screenHeight
 	newFrame()
 	FRAMECOUNT += 1
+	
 	game.gameLoop()
 								
 
