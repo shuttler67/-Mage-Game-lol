@@ -176,7 +176,7 @@ class Enemy(Entity):
 				path = self.astar.findPath((int(self.x/30),int(self.y/30)),(int(playerPos[0]/30),int(playerPos[1]/30)),canMoveTo)
 				self.followPath(path)
 				self.isWandering = False
-			elif FRAMECOUNT%15 == 0:
+			elif FRAMECOUNT%30 == 0:
 				path = self.astar.findPath((int(self.x/30),int(self.y/30)),(int(playerPos[0]/30),int(playerPos[1]/30)),canMoveTo)
 				self.followPath(path)
 			else:
@@ -207,11 +207,13 @@ class meleeEnemy(Enemy):
 			self.speedy = 0
 			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
 			self.isWandering = True
+		
+class EpicFace(meleeEnemy):
+	def __init__(self,x,y):
+		meleeEnemy.__init__(self,100,x,y,200,5,20,0.1,400)
 	def draw(self,cameraX, cameraY):
 		drawImage(epicface,self.x-cameraX,self.y-cameraY,self.size,self.size)
 		Enemy.draw(self,cameraX, cameraY)
-		
-	
 #Enemies
 
 #PLAY WITH MEEEEE class
@@ -326,20 +328,23 @@ class Level:
 	def handleObjects(self,player,cameraX,cameraY):
 		canNotMoves = []		
 				
-		for wall in self.walls:
-			canNotMoves += wall.playerCollide(player.x,player.y,MANSIZE)
-			for i in range(len(self.proj)-1, -1, -1):
-				projectile = self.proj[i]
-				projectile.move()
-				if projectile.checkIfOut(cameraX,cameraY) or projectile.checkIfCollide(wall.rect):
-					del self.proj[i]
-		for enemy in self.enemies:
-			enemy.update((player.x,player.y),self.canNotMove)
-			enemy.touchAttack(player)
-			for i in range(len(self.proj)-1, -1, -1):
-				if circleVScircle(self.proj[i].x,self.proj[i].y,self.proj[i].size/2,enemy.x,enemy.y,enemy.size/2):
-					del self.proj[i]
-					enemy.health -= random()*(10-5)+5
+		#for wall in self.walls:
+			#canNotMoves += wall.playerCollide(player.x,player.y,MANSIZE)
+		for i in range(len(self.proj)-1, -1, -1):
+			self.proj[i].move()
+			if self.proj[i].checkIfOut(cameraX,cameraY): #or self.proj[i].checkIfCollide(wall.rect):
+				del self.proj[i]
+		for i in range(len(self.enemies)-1, -1, -1):
+			self.enemies[i].update((player.x,player.y),self.canNotMove)
+			self.enemies[i].touchAttack(player)
+			for j in range(len(self.proj)-1, -1, -1):
+				if circleVScircle(self.proj[j].x,self.proj[j].y,self.proj[j].size/2,self.enemies[i].x,self.enemies[i].y,self.enemies[i].size/2):
+					del self.proj[j]
+					self.enemies[i].health -= random()*(10-5)+5
+			if self.enemies[i].health <= 0:
+				del self.enemies[i]
+				self.enemies.append(EpicFace(300,300))
+				
 
 		return canNotMoves
 
@@ -389,13 +394,6 @@ class Game:
 			firstMouseup = True
 			self.mousedown = False
 
-		if not self.pause:
-			canNotMoves = self.currentLevel.handleObjects(self.man,self.cameraX,self.cameraY)
-			self.man.inAttack = self.mousedown
-			self.man.move(canNotMoves)
-
-		self.GUI.update(self.pause)
-
 		if firstMouseup:
 			returnValue,overButtons = self.GUI.handleMouseUp()
 			if returnValue == 'pause':
@@ -404,6 +402,13 @@ class Game:
 				self.pause = False
 			if not self.pause:
 				self.currentLevel.spawnProjectile(overButtons,self.man.x,self.man.y,self.cameraX,self.cameraY)
+
+		if not self.pause:
+			canNotMoves = self.currentLevel.handleObjects(self.man,self.cameraX,self.cameraY)
+			self.man.inAttack = self.mousedown
+			self.man.move(canNotMoves)
+
+		self.GUI.update(self.pause)
 				
 		if self.man.x-self.cameraX > (_screenWidth-CAMERASLACKX) or self.man.x-self.cameraX < CAMERASLACKX:
 			self.cameraX+=self.man.speedx
@@ -424,7 +429,7 @@ class Game:
 		
 		
 #Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
-LEVELS= [{"WALLS":[Wall(100,100,10,1),Wall(200,100,1,10)],"ENEMIES":[meleeEnemy(100,300,300,60,5,20,0.1,500)]}]
+LEVELS= [{"WALLS":[],"ENEMIES":[EpicFace(300,300)]}]
 
 game = Game()
 while True:
