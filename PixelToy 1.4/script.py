@@ -51,9 +51,9 @@ WHITE = (255,255,255,255)
 
 #Wall class
 class Wall:
-	def __init__(self,x,y,w,h):
-		self.rect = Rect(x,y,w*10,h*10)
-	def playerCollide(self,playerx,playery,playerSize):
+	def __init__(self,x,y,x2,y2):
+		self.rect = Rect(x,y,x2,y2)
+	'''def playerCollide(self,playerx,playery,playerSize):
 		canNotMoves = []
 		movedx = playerx
 		movedy = playery
@@ -72,7 +72,7 @@ class Wall:
 				canNotMoves.append(direction)
 			movedx = playerx
 			movedy = playery
-		return canNotMoves
+		return canNotMoves'''
 	def draw(self,cameraX,cameraY):
 		useColourList(GREEN)
 		drawRectangle(self.rect.x1-cameraX,self.rect.y1-cameraY,self.rect.width,self.rect.height)

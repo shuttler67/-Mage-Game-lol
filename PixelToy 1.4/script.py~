@@ -51,8 +51,8 @@ WHITE = (255,255,255,255)
 
 #Wall class
 class Wall:
-	def __init__(self,x,y,w,h):
-		self.rect = Rect(x,y,w*10,h*10)
+	def __init__(self,x,y,x2,y2):
+		self.rect = Rect(x,y,x2,y2)
 	def playerCollide(self,playerx,playery,playerSize):
 		canNotMoves = []
 		movedx = playerx
@@ -210,7 +210,7 @@ class meleeEnemy(Enemy):
 		
 class EpicFace(meleeEnemy):
 	def __init__(self,x,y):
-		meleeEnemy.__init__(self,100,x,y,700,5,20,0.1,1000)
+		meleeEnemy.__init__(self,100,x,y,200,5,20,0.1,400)
 	def draw(self,cameraX, cameraY):
 		drawImage(epicface,self.x-cameraX,self.y-cameraY,self.size,self.size)
 		Enemy.draw(self,cameraX, cameraY)
