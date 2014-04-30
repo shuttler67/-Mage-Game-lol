@@ -33,7 +33,7 @@ MAXSPEED = 2.7
 MANSIZE = 60
 CAMERASLACKX=250/5
 CAMERASLACKY=200/5
-	
+
 FRAMECOUNT = 0
 allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','SHIFT','TAB','SPACE','ESCAPE')
 KEYSTATES = {}
@@ -44,12 +44,19 @@ for key in allKeysUsed:
 	
 #MAP
 MAPSIZE= 40
+global MAP, WALLSIZE
 MAP = []
+WALLSIZE = 30
 for i in range(MAPSIZE):
 	MAP.append([])
 	for j in range(MAPSIZE):
 		MAP[i].append(j == 0 or j == MAPSIZE-1 or i == 0 or i == MAPSIZE-1)
 print MAP
+
+for i in range(7):
+	MAP[8][10+i] = True
+	MAP[i+1][20] = True
+	MAP[20][i+15] = True
 # Colours
 #		 R G B Alpha
 RED = (255, 0 , 0 ,255)
@@ -156,7 +163,7 @@ class Entity:
 			if velAlongNormal > 0.0:
 				return
 			
-			if isinstance(self,Enemy) and isinstance(self,Enemy):
+			if isinstance(self,Enemy) and isinstance(other,Enemy):
 				e = 0.2
 			else:
 				e = min(self.restitution, other.restitution)
@@ -208,7 +215,7 @@ class Projectile:
 
 		cosine, sine = findTrajectory(self.pos.x,self.pos.y,tx,ty)
 		self.trajectory = Vect(cosine, sine)
-		self.trajectory *= 5
+		self.trajectory *= 16
 	def move(self):
 		self.pos += self.trajectory
 
@@ -242,12 +249,19 @@ class Enemy(Entity):
 		self.moveSpeed = speed
 		self.astar = AStar()
 		self.isWandering = True
-
+	
+	@staticmethod
+	def canMoveTo(node):
+		if node.worldx < 0 or node.worldy < 0 or node.worldx > MAPSIZE-1 or node.worldy > MAPSIZE-1:
+			return False
+		if MAP[node.worldx][node.worldy]:
+			return False
+		return True
 	def followPath(self, path = None):
 		if path != None:
 			self.pathIter = iter(path)
 			node = self.pathIter.next()
-			self.currentNode = (node[0]*30,node[1]*30)
+			self.currentNode = (node[0]*WALLSIZE,node[1]*WALLSIZE)
 		elif CIRCvsCIRC(Circ(self.currentNode[0],self.currentNode[1],25),Circ(self.pos.x,self.pos.y,0)):
 			self.currentNode = self.pathIter.next()
 		
@@ -256,16 +270,18 @@ class Enemy(Entity):
 	def wander(self):
 		global FRAMECOUNT
 
-	def update(self,playerPos,canMoveTo):
+	def update(self,playerPos):
 		#global FRAMECOUNT
 		if CIRCvsCIRC(Circ(playerPos.x, playerPos.y,MANSIZE/2),Circ(self.pos.x,self.pos.y,self.radar)):
 			if self.isWandering:
-				path = self.astar.findPath((int(self.pos.x/30),int(self.pos.y/30)),(int(playerPos.x/30),int(playerPos.y/30)),canMoveTo)
-				self.followPath(path)
-				self.isWandering = False
-			elif FRAMECOUNT%30 == 0:
-				path = self.astar.findPath((int(self.pos.x/30),int(self.pos.y/30)),(int(playerPos.x/30),int(playerPos.y/30)),canMoveTo)
-				self.followPath(path)
+				path = self.astar.findPath((int(self.pos.x/WALLSIZE),int(self.pos.y/WALLSIZE)),(int(playerPos.x/WALLSIZE),int(playerPos.y/WALLSIZE)),self.canMoveTo)
+				if path != None:
+					self.followPath(path)
+					self.isWandering = False
+			elif FRAMECOUNT%200 == 0:
+				path = self.astar.findPath((int(self.pos.x/WALLSIZE),int(self.pos.y/WALLSIZE)),(int(playerPos.x/WALLSIZE),int(playerPos.y/WALLSIZE)),self.canMoveTo)
+				if path != None:
+					self.followPath(path)
 			else:
 				self.followPath()
 		else:
@@ -299,7 +315,7 @@ class Enemy(Entity):
 # x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density
 class EpicFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,20), 40, 2, 5, 10, 600, 0.4,8)
+		Enemy.__init__(self,x,y,Circ(x,y,20), 40, 2, 5, 6, 600, 0.4,8)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -308,7 +324,7 @@ class EpicFace(Enemy):
 		
 class TrollFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 20, 900, 0.25,10)
+		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 9, 900, 0.25,10)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -337,7 +353,7 @@ class Player(Entity):
 		if self.inAttack:
 			movement = 0.1
 		else:
-			movement = 5
+			movement = 0.35
 				
 		if KEYSTATES['w']:
 			accel.y += movement
@@ -357,7 +373,7 @@ class Player(Entity):
 
 		self.applyForce(accel)
 		Entity.update(self)
-
+		
 	def draw(self,cam):
 		global FRAMECOUNT
 		if self.facing == RIGHT and LEFT in self.directions:
@@ -367,6 +383,9 @@ class Player(Entity):
 			
 		cam_x, cam_y = cam.getCameraView(self.pos)
 		
+		if KEYSTATES['t'] and not PREV_KEYSTATES['t']:
+			mx,my = cam.getWorldView(Vect(_mouseX,_mouseY))
+			self.pos.Set(mx,my)
 		if self.inAttack:
 			if FRAMECOUNT%30<15:
 				image = charge1
@@ -441,9 +460,7 @@ class Level:
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
 		self.proj = []
-	@staticmethod
-	def canNotMove(node):
-		return True
+
 	def handleObjects(self,player,cam):	
 		
 		for i in range(len(self.proj)-1, -1, -1):
@@ -457,20 +474,25 @@ class Level:
 						break
 
 		for i in range(len(self.enemies)-1, -1, -1):
-			self.enemies[i].update(player.pos,self.canNotMove)
+			self.enemies[i].update(player.pos)
 			if self.enemies[i].resolveCollision(player):
 				player.health -= self.enemies[i].minAttackDamage+random()*(self.enemies[i].maxAttackDamage-self.enemies[i].minAttackDamage)
 				self.enemies[i].isWandering = True
 			
 			for j in range(len(self.proj)-1, -1, -1):
 				if self.proj[j].checkIfCollide(self.enemies[i].hit_box):
-					del self.proj[j]
+					#del self.proj[j]
 					self.enemies[i].health -= random()*(10-5)+5
 					
 			if self.enemies[i].health <= 0:
 				del self.enemies[i]
 				self.enemies.append(EpicFace(200,300))
+				self.enemies.append(TrollFace(200,350))
 				
+		for index, enemy1 in enumerate(self.enemies[:-1]):
+			for enemy2 in self.enemies[index+1:]:
+				enemy1.resolveCollision(enemy2)
+		
 		entities = self.enemies + [player]
 		for wall in self.walls:
 			for entity in entities:
@@ -527,7 +549,10 @@ class Game:
 				self.cam.pause = False
 			if not self.cam.pause:
 				self.currentLevel.spawnProjectile(overButtons,self.man.pos,self.cam)
-				
+		
+		if KEYSTATES['c']:
+			self.currentLevel.spawnProjectile(False,self.man.pos,self.cam)
+
 		if KEYSTATES['ESCAPE'] and not PREV_KEYSTATES['ESCAPE']:
 			self.cam.pause = not self.cam.pause
 		
@@ -582,11 +607,11 @@ class Menu:
 			button.draw(Vect(_mouseX,_mouseY))
 
 #Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
-LEVELS= [{"WALLS":[],"ENEMIES":[TrollFace(300,300)]}] #TrollFace(300,300)
+LEVELS= [{"WALLS":[],"ENEMIES":[TrollFace(300,300), TrollFace(500,300), EpicFace(400,300)]}] #TrollFace(300,300)
 for x in range(len(MAP)):
 	for y in range(len(MAP[x])):
 		if MAP[x][y]:
-			LEVELS[0]['WALLS'].append(Wall(x*60,y*60,x*60+60,y*60+60))
+			LEVELS[0]['WALLS'].append(Wall(x*WALLSIZE,y*WALLSIZE,x*WALLSIZE+WALLSIZE,y*WALLSIZE+WALLSIZE))
 game = Game()
 while True:
 	PREVIOUSscreenHeight = _screenHeight

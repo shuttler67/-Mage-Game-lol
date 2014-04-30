@@ -39,8 +39,6 @@ class Vect:
 			self.x /= length
 			self.y /= length
 			
-	def __repr__(self):
-		print "Vect", self.x, self.y
 	def __add__(self,vect_or_scal):
 		if isinstance(vect_or_scal,Vect):
 			return Vect(vect_or_scal.x + self.x, vect_or_scal.y + self.y) 
