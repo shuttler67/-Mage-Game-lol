@@ -1,6 +1,6 @@
 #!/git/-Mage-Game-lol/PixelToy\ 1.4
 
-import math
+import math, sys
 
 from astar import *
 from utilities import *
@@ -153,7 +153,7 @@ class Entity:
 			
 			self.speed -= self.invMass * impulse
 			other.speed += other.invMass * impulse
-			print other.speed.x,other.speed.y
+
 			#positional correction
 			percent = 0.1
 			slop = 0.01
@@ -293,7 +293,7 @@ class EpicFace(Enemy):
 		
 class TrollFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 20, 900, 0.15,10)
+		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 50, 200, 20, 900, 0.15,10)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -422,9 +422,10 @@ class GUI:
 
 #Level Up! class
 class Level:
-	def __init__(self,levelDICT): 
+	def __init__(self,levelDICT):
 		self.walls = levelDICT["WALLS"]
 		self.enemies = levelDICT["ENEMIES"]
+		print levelDICT
 		self.proj = []
 	@staticmethod
 	def canNotMove(node):
@@ -439,6 +440,7 @@ class Level:
 				for wall in self.walls:
 					if self.proj[i].checkIfCollide(wall.hit_box):
 						del self.proj[i]
+						break
 
 		for i in range(len(self.enemies)-1, -1, -1):
 			self.enemies[i].update(player.pos,self.canNotMove)
@@ -482,19 +484,19 @@ class Level:
 #Level class
 
 class Game:
-	def __init__(self):
+	def __init__(self,levels):
 		self.man = Player()
 		self.cam = Camera(-_screenWidth/2, -_screenHeight/2, False)
 		self.mousedown = False
-		self.currentLevel = Level(LEVELS[0])
+		self.currentLevel = Level(levels[0])
 		self.GUI = GUI()
 		
 	def gameLoop(self):	
 		for key in allKeysUsed:
 			KEYSTATES[key]= isKeyDown(key)
-		self.update()
-		self.draw()
-
+		if self.update():	
+			self.draw()
+			return True
 	def update(self):
 		firstMousedown = False
 		firstMouseup = False
@@ -521,7 +523,8 @@ class Game:
 			self.currentLevel.handleObjects(self.man,self.cam)
 
 		self.GUI.update(self.cam.pause)
-				
+		if self.man.health <= 0:
+			return False
 		cam_x, cam_y = self.cam.getCameraView(self.man.pos)
 		cam_x -= _screenWidth/2
 		cam_y -= _screenHeight/2
@@ -543,7 +546,7 @@ class Game:
 			
 		if KEYSTATES['p']:
 			print self.man.pos.x, self.man.pos.y
-
+		return True
 	def draw(self):
 		self.currentLevel.drawLevel(self.cam)
 		self.man.draw(self.cam)
@@ -558,14 +561,20 @@ class Game:
 		
 		
 #Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
-LEVELS= [{"WALLS":[Wall(100,100,1100,120)],"ENEMIES":[TrollFace(300,300)]}] #TrollFace(300,300)
+LEVELS= [{"WALLS":[Wall(100,100,1100,120),Wall(100,300,1100,320)],"ENEMIES":[TrollFace(300,300),TrollFace(400,300)]}] #TrollFace(300,300)
 
-game = Game()
+game = Game(LEVELS[:])
+fail = False
 while True:
 	PREVIOUSscreenHeight = _screenHeight
 	newFrame()
 	FRAMECOUNT += 1
-	
-	game.gameLoop()
-								
-
+	if not fail:
+		if not game.gameLoop():
+			fail = True
+	else:							
+		drawString(_screenWidth/2-12*5,300,"Game Over!")
+		drawString(_screenWidth/2-12*10,280,"Press 'r' to restart!")
+		if isKeyDown('r'):
+			game = Game(LEVELS[:])
+			fail = False
