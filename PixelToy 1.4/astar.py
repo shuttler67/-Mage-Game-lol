@@ -1,15 +1,14 @@
 
-
 class AStar:
 	def __init__(self):
-		pass
+		self.goal = 0
 	@staticmethod
 	def estimateHeuristicTo(goal, node):
 		deltaX = abs(goal[0] - node.worldx)
 		deltaY = abs(goal[1] - node.worldy)
 		#return deltaX + deltaY
 		return min(deltaX, deltaY) * 1.4 + max(deltaX, deltaY) - min(deltaX, deltaY)
-		
+
 	class Node:
 		def __init__(self, worldx, worldy):
 			self.worldx, self.worldy = worldx, worldy
@@ -18,10 +17,10 @@ class AStar:
 			self.cameFromPos = cameFromPos
 			self.g_score = distanceFromStart
 			self.f_score = AStar.estimateHeuristicTo(goal, self) + self.g_score
-			
+
 		def __eq__(self, node2):
 			return self.worldx == node2.worldx and self.worldy == node2.worldy
-			
+
 		def neighbourNodes(self, goal):
 			neighbours =[]
 			for worldx in range(-1,2):
@@ -33,20 +32,7 @@ class AStar:
 						neighbours.append(AStar.Node(self.worldx+worldx,self.worldy+worldy))
 						neighbours[-1].calculateScores(self.g_score+distance, goal, (self.worldx,self.worldy))
 	    		return neighbours		
-		
-	def recoverPath(self, goal = self.goal):
-		nodePath = [goal]
-		path = []
-		
-		while not nodePath[0] == self.start:
-			print nodePath[0].worldx, nodePath[0].worldy
-			nodePath.insert(0,self.closedNodes[self.closedNodes.index(AStar.Node(*nodePath[0].cameFromPos))])
-		
-		for node in nodePath:
-			path.append((node.worldx, node.worldy))
-		
-		return path
-	
+
 	def findPath(self, start, goal, canMoveTo):
 		self.start = AStar.Node(*start)
 		self.goal = AStar.Node(*goal)
@@ -88,7 +74,7 @@ class AStar:
 
 					elif currentNeighbours[i] in self.openNodes:
 						open_index = self.openNodes.index(currentNeighbours[i])
-						if currentNeighbours[i].g_score < self.openNodes[open_index].g_score:	
+						if currentNeighbours[i].g_score < self.openNodes[open_index].g_score:
 							self.openNodes[open_index].calculateScores(currentNeighbours[i].g_score,(self.goal.worldx, self.goal.worldy),currentNeighbours[i].cameFromPos)
 						del currentNeighbours[i]
 							
@@ -102,3 +88,20 @@ class AStar:
 		else:
 			return self.recoverPath(self.closedNodes[-1])
 
+	def recoverPath(self, goal=None):
+		if not bool(goal):
+			nodePath = [self.goal]
+		else:
+			nodePath = [goal]
+		path = []
+
+		while not nodePath[0] == self.start:
+			nodePath.insert(0,self.closedNodes[self.closedNodes.index(AStar.Node(*nodePath[0].cameFromPos))])
+
+		for node in nodePath:
+			path.append((node.worldx, node.worldy))
+
+		self.closedNodes = []
+		self.openNodes = []
+		path.reverse()
+		return path
