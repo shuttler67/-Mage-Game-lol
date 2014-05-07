@@ -12,7 +12,7 @@ class AStar:
 	class Node:
 		def __init__(self, worldx, worldy,isGoal=False):
 			self.worldx, self.worldy = worldx, worldy
-			self.isParentless = isGoal
+			self.isParentless = False
 
 		def calculateScores(self, distanceFromStart, goal, cameFromPos):
 			self.cameFromPos = cameFromPos
