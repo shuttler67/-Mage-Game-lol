@@ -23,10 +23,11 @@ class Vect:
 		return self.x**2+self.y**2
 
 	def Rotate(self, radians):
-		c = cos(radians)
-		s = sin(radians)
-		self.x = self.x * c - self.y * s
-		self.y = self.y * s + self.y * c
+		c = math.cos(radians)
+		s = math.sin(radians)
+		tmpx = self.x
+		self.x = tmpx * c + self.y * s
+		self.y = tmpx * -s + self.y * c
 
 	def Set(self,x, y):
 		self.x = x

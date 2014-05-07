@@ -1,6 +1,7 @@
 
 class AStar:
-	def __init__(self):
+	def __init__(self,radius):
+		self.entityRadius = radius
 		self.goal = 0
 	@staticmethod
 	def estimateHeuristicTo(goal, node):
@@ -34,7 +35,7 @@ class AStar:
 						neighbours[-1].calculateScores(self.g_score+distance, goal, (self.worldx,self.worldy))
 	    		return neighbours		
 
-	def findPath(self, start, goal, canMoveTo):
+	def findPath(self, start, goal, canMoveTo, isDisliked):
 		gx,gy = goal
 		self.start = AStar.Node(*start)
 		self.goal = AStar.Node(gx,gy,True)
@@ -53,14 +54,19 @@ class AStar:
 				min_f_score = 100000000
 
 				for i in range(len(self.openNodes)):
+						
 					if self.openNodes[i].f_score < min_f_score:
 						min_f_score = self.openNodes[i].f_score
 						bestIndex = i
+						
+					if self.estimateHeuristicTo((self.goal.worldx,self.goal.worldy), self.openNodes[i]) <= 2.8:
+						bestIndex = i
+						break
 
 				self.closedNodes.append(self.openNodes[bestIndex])
 				currentNode = self.openNodes[bestIndex]
 				del self.openNodes[bestIndex]
-
+					
 				if currentNode == self.goal:
 					foundGoal = True
 					self.goal = currentNode
@@ -80,21 +86,32 @@ class AStar:
 							self.openNodes[open_index].calculateScores(currentNeighbours[i].g_score,(self.goal.worldx, self.goal.worldy),currentNeighbours[i].cameFromPos)
 						del currentNeighbours[i]
 							
+					else:
+						if isDisliked(currentNeighbours[i],self.entityRadius):
+							currentNeighbours[i].f_score += 50
+						
 				self.openNodes += currentNeighbours
-
 			else:
 				fail = True
-
+				
 		if not fail:
-			return self.recoverPath()
+			return self.recoverPath(self.goal)
 		else:
-			return self.recoverPath(self.closedNodes[-1])
+			'''bestIndex = 0
+			min_h_score = 100000000
 
-	def recoverPath(self, goal=None):
-		if not bool(goal):
-			nodePath = [self.goal]
-		else:
-			nodePath = [goal]
+			for i in range(len(self.closedNodes)):
+				h_score = AStar.estimateHeuristicTo((self.goal.worldx,self.goal.worldy), self.closedNodes[i])
+				if h_score < min_h_score:
+					min_h_score = h_score
+					bestIndex = i
+			
+			return self.recoverPath(self.closedNodes[i])'''
+			return
+
+
+	def recoverPath(self,goal):
+		nodePath = [goal]
 		path = []
 
 		while not nodePath[0] == self.start:

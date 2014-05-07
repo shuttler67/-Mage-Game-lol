@@ -254,12 +254,15 @@ class Enemy(Entity):
 		self.moveSpeed = speed
 		
 		self.astar = AStar(self.radius)
-		self.AStarRepeatTime = int(random()*200)
+		self.AStarRepeatTime = int(random()*100)
+		
 		self.isWandering = True
+		self.isCirclingTimer = 0
+		self.attackTimer = 0
+		
 		self.hasPath = False
 		self.currentNode = (self.pos.x,self.pos.y)
-		
-		self.attackTimer = 0
+
 		
 	@staticmethod
 	def canMoveTo(node):
@@ -282,10 +285,13 @@ class Enemy(Entity):
 		deletionDepth = (radius*2-1)/WALLSIZE
 		
 		for i in xrange(-deletionDepth,deletionDepth):
-			if abs(node.worldx) + abs(i) >= MAPSIZE or abs(node.worldy) + abs(i) >= MAPSIZE:
-				continue
-			if MAP[node.worldx + i][node.worldy] or MAP[node.worldx][node.worldy + i] or MAP[node.worldx + i][node.worldy + i] or MAP[node.worldx - i][node.worldy - i]:
-				return True
+			for j in xrange(-deletionDepth,deletionDepth):
+				if abs(node.worldx) + abs(i) >= MAPSIZE or abs(node.worldy) + abs(j) >= MAPSIZE:
+					continue
+				if i == 0 and j == 0:
+					continue
+				if MAP[node.worldx + i][node.worldy + j]:
+					return True
 		
 	def followPath(self, isNewPath = False):
 		if len(self.path) != 0:
@@ -320,7 +326,7 @@ class Enemy(Entity):
 
 				self.isWandering = False
 
-			elif FRAMECOUNT % 200 == self.AStarRepeatTime:
+			elif not CIRCvsCIRC(Circ(playerPos.x, playerPos.y,0),Circ(self.pos.x,self.pos.y,100)) and FRAMECOUNT % 100 == self.AStarRepeatTime:
 				self.isWandering = True
 					
 			elif self.hasPath:
@@ -334,7 +340,21 @@ class Enemy(Entity):
 				if self.attackTimer == 60:
 					self.attackTimer = 0
 					self.isWandering = True 
+			
+			if self.isCirclingTimer != 0:
+				self.isCirclingTimer -= 1
 				
+				if CIRCvsCIRC(Circ(playerPos.x, playerPos.y,1),Circ(self.pos.x,self.pos.y,50)):
+					self.walkAway(playerPos)
+				else:
+					move = Vect(*findTrajectory(self.pos.x,self.pos.y, playerPos.x, playerPos.y))
+					move *= self.moveSpeed *3
+					move *= self.mass
+					move.Rotate(math.radians(90.0))
+					self.applyForce(move)
+					
+				if self.isCirclingTimer == 0:
+					self.attackTimer = 60
 		else:
 			self.isWandering = True
 			self.wander()
@@ -345,7 +365,12 @@ class Enemy(Entity):
 		#print posTuple
 		cos, sin = findTrajectory(self.pos.x,self.pos.y,*posTuple)
 		self.applyForce(Vect(cos * self.moveSpeed * self.mass, sin * self.moveSpeed * self.mass))
-
+	
+	def walkAway(self,posVect):
+		#print posTuple
+		cos, sin = findTrajectory(posVect.x,posVect.y,self.pos.x,self.pos.y)
+		self.applyForce(Vect(cos * self.moveSpeed * self.mass, sin * self.moveSpeed * self.mass))
+	
 	def draw(self,cam):
 			
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -374,16 +399,12 @@ class Enemy(Entity):
 		
 		nx,ny = cam.getCameraView(Vect(*self.currentNode))
 		drawCircle(nx,ny,5)
+			
 
-	def touchAttack(self,player):
-		if self.resolveCollision(player):
-			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
-			self.isWandering = True
-		
 # x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density
 class EpicFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,15), 40, 2, 5, 4, 600, 0.29,2)
+		Enemy.__init__(self,x,y,Circ(x,y,15), 40, 2, 5, 2, 1600, 0.29,2)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -392,11 +413,11 @@ class EpicFace(Enemy):
 		
 class TrollFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 6, 900, 0.2,4)
+		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 3, 1900, 0.2,4)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
-		
+
 		drawImage(trollface,cam_x, cam_y, self.hit_box.r * 2,self.hit_box.r * 2)
 		Enemy.draw(self,cam)
 
@@ -409,13 +430,18 @@ class Player(Entity):
 		self.inAttack = False
 		self.maxHealth = 200.0
 		self.health = 200.0
-	
+		
+		self.invulnTimer = 0
+		
 		self.maxMana = 100.0
 		self.mana = self.maxMana
 		self.isMoving = False
 		self.facing = RIGHT
 		
 	def update(self):
+		if self.invulnTimer != 0:
+			self.invulnTimer -= 1
+
 		accel = Vect(0.0,0.0)
 
 		if self.inAttack:
@@ -454,6 +480,7 @@ class Player(Entity):
 		if KEYSTATES['t'] and not PREV_KEYSTATES['t']:
 			mx,my = cam.getWorldView(Vect(_mouseX,_mouseY))
 			self.pos.Set(mx,my)
+
 		if self.inAttack:
 			if FRAMECOUNT%30<15:
 				image = charge1
@@ -524,13 +551,30 @@ class GUI:
 
 #Level Up! class
 class Level:
-	def __init__(self,levelDICT):
-		self.walls = levelDICT["WALLS"]
-		self.enemies = levelDICT["ENEMIES"]
+	def __init__(self):
+		self.walls = []
+		self.enemies = []
 		self.proj = []
+		self.enemySpawnRate = 400
 
+		for x in range(len(MAP)):
+			for y in range(len(MAP[x])):
+				if MAP[x][y]:
+					self.walls.append(Wall(x*WALLSIZE,y*WALLSIZE,x*WALLSIZE+WALLSIZE,y*WALLSIZE+WALLSIZE))
+	
 	def handleObjects(self,player,cam):	
 		
+		if FRAMECOUNT % self.enemySpawnRate == 0:
+			ranPosX = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
+			ranPosY = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
+
+			if round(random()) == 0:
+				self.enemies.append(EpicFace(ranPosX,ranPosY))
+			else:
+				self.enemies.append(TrollFace(ranPosX,ranPosY))
+
+			self.enemySpawnRate = 1000000#1+int(random() * 500)
+
 		for i in range(len(self.proj)-1, -1, -1):
 			self.proj[i].move()
 			if self.proj[i].checkIfOut(cam):
@@ -543,9 +587,11 @@ class Level:
 
 		for i in range(len(self.enemies)-1, -1, -1):
 			self.enemies[i].update(player.pos)
-			if self.enemies[i].resolveCollision(player):
+			if self.enemies[i].resolveCollision(player) and player.invulnTimer == 0:
 				player.health -= self.enemies[i].minAttackDamage+random()*(self.enemies[i].maxAttackDamage-self.enemies[i].minAttackDamage)
-				self.enemies[i].isWandering = True
+				self.enemies[i].attackTimer = 0
+				self.enemies[i].isCirclingTimer = 60
+				player.invulnTimer = 60
 			
 			for j in range(len(self.proj)-1, -1, -1):
 				if self.proj[j].checkIfCollide(self.enemies[i].hit_box):
@@ -555,16 +601,6 @@ class Level:
 					
 			if self.enemies[i].health <= 0:
 				del self.enemies[i]
-				if round(random()) == 0:
-					self.enemies.append(EpicFace(200,300))
-				else:
-					self.enemies.append(TrollFace(800,350))
-					
-				if round(random()) == 0:
-					if round(random()) == 0:
-						self.enemies.append(EpicFace(500,300))
-					else:
-						self.enemies.append(TrollFace(200,750))
 				
 		for index, enemy1 in enumerate(self.enemies[:-1]):
 			for enemy2 in self.enemies[index+1:]:
@@ -598,11 +634,11 @@ class Level:
 #Level class
 
 class Game:
-	def __init__(self,levels):
+	def __init__(self):
 		self.man = Player()
 		self.cam = Camera(-_screenWidth/2, -_screenHeight/2, False)
 		self.mousedown = False
-		self.currentLevel = Level(LEVELS[0].copy())
+		self.currentLevel = Level()
 		self.GUI = GUI()
 		
 	def gameLoop(self):	
@@ -666,11 +702,20 @@ class Game:
 		if KEYSTATES['p']:
 			print self.man.pos.x, self.man.pos.y
 		return True
+
 	def draw(self):
 		self.currentLevel.drawLevel(self.cam)
 		self.man.draw(self.cam)
 		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
 		
+		if FRAMECOUNT < 300:
+			useColourList(RED)
+			drawString(_screenWidth/2-6*8, _screenHeight/2,"GET READY")
+		
+		elif FRAMECOUNT < 400:
+			useColourList(GREEN)
+			drawString(_screenWidth/2-12, _screenHeight/2,"GO")
+			
 		if self.cam.pause:
 			useColour(0,0,0,130)
 			drawRectangle(0,0,_screenWidth,_screenHeight)
@@ -688,13 +733,8 @@ class Menu:
 			button.draw(Vect(_mouseX,_mouseY))
 
 #Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
-LEVELS= [{"WALLS":[],"ENEMIES":[EpicFace(400,300)]}] #TrollFace(300,300)
-for x in range(len(MAP)):
-	for y in range(len(MAP[x])):
-		if MAP[x][y]:
-			LEVELS[0]['WALLS'].append(Wall(x*WALLSIZE,y*WALLSIZE,x*WALLSIZE+WALLSIZE,y*WALLSIZE+WALLSIZE))
 
-game = Game(LEVELS[:])
+game = Game()
 fail = False
 
 while True:
@@ -702,20 +742,19 @@ while True:
 	PREV_KEYSTATES = KEYSTATES.copy()
 	newFrame()
 	FRAMECOUNT += 1
-
+	
+	for key in allKeysUsed:
+		KEYSTATES[key]= isKeyDown(key)
+		
 	if not fail:
 		if not game.gameLoop():
 			fail = True
+			game = None
 	else:							
 		drawString(_screenWidth/2-12*5,300,"Game Over!")
 		drawString(_screenWidth/2-12*10,280,"Press 'r' to restart!")
 		if isKeyDown('r'):
-			game = Game(LEVELS[:])
+			game = Game()
+			FRAMECOUNT = 0
 			fail = False
-
-	for key in allKeysUsed:
-		KEYSTATES[key]= isKeyDown(key)
-	game.gameLoop()
 			
-
-
