@@ -1,0 +1,126 @@
+
+class AStar:
+	def __init__(self,radius):
+		self.entityRadius = radius
+		self.goal = 0
+	@staticmethod
+	def estimateHeuristicTo(goal, node):
+		deltaX = abs(goal[0] - node.worldx)
+		deltaY = abs(goal[1] - node.worldy)
+		#return deltaX + deltaY
+		return min(deltaX, deltaY) * 1.4 + max(deltaX, deltaY) - min(deltaX, deltaY)
+
+	class Node:
+		def __init__(self, worldx, worldy,isGoal=False):
+			self.worldx, self.worldy = worldx, worldy
+			self.isParentless = isGoal
+
+		def calculateScores(self, distanceFromStart, goal, cameFromPos):
+			self.cameFromPos = cameFromPos
+			self.g_score = distanceFromStart
+			self.f_score = AStar.estimateHeuristicTo(goal, self) + self.g_score
+
+		def __eq__(self, node2):
+			return self.worldx == node2.worldx and self.worldy == node2.worldy
+
+		def neighbourNodes(self, goal):
+			neighbours =[]
+			for worldx in range(-1,2):
+				for worldy in range(-1,2):
+					distance = 1.0
+					if abs(worldx)+abs(worldy) == 2:
+						distance = 1.4
+					if not worldx == worldy == 0:
+						neighbours.append(AStar.Node(self.worldx+worldx,self.worldy+worldy))
+						neighbours[-1].calculateScores(self.g_score+distance, goal, (self.worldx,self.worldy))
+	    		return neighbours		
+
+	def findPath(self, start, goal, canMoveTo, isDisliked):
+		gx,gy = goal
+		self.start = AStar.Node(*start)
+		self.goal = AStar.Node(gx,gy,True)
+		self.start.calculateScores(0, goal, None)
+		self.openNodes = [self.start]
+		self.closedNodes = []
+
+		if not canMoveTo(self.goal):
+			return
+		foundGoal = False
+		fail = False
+		iteration = 0
+		while not foundGoal and not fail:
+			if len(self.openNodes) != 0:
+				bestIndex = 0
+				min_f_score = 100000000
+
+				for i in range(len(self.openNodes)):
+						
+					if self.openNodes[i].f_score < min_f_score:
+						min_f_score = self.openNodes[i].f_score
+						bestIndex = i
+						
+					if self.estimateHeuristicTo((self.goal.worldx,self.goal.worldy), self.openNodes[i]) <= 2.8:
+						bestIndex = i
+						break
+
+				self.closedNodes.append(self.openNodes[bestIndex])
+				currentNode = self.openNodes[bestIndex]
+				del self.openNodes[bestIndex]
+					
+				if currentNode == self.goal:
+					foundGoal = True
+					self.goal = currentNode
+					continue
+				currentNeighbours = currentNode.neighbourNodes((self.goal.worldx, self.goal.worldy))
+
+				for i in range(len(currentNeighbours)-1,-1,-1):
+					if currentNeighbours[i] in self.closedNodes:
+						del currentNeighbours[i]
+							
+					elif not canMoveTo(currentNeighbours[i]):
+						del currentNeighbours[i]
+
+					elif currentNeighbours[i] in self.openNodes:
+						open_index = self.openNodes.index(currentNeighbours[i])
+						if currentNeighbours[i].g_score < self.openNodes[open_index].g_score:
+							self.openNodes[open_index].calculateScores(currentNeighbours[i].g_score,(self.goal.worldx, self.goal.worldy),currentNeighbours[i].cameFromPos)
+						del currentNeighbours[i]
+							
+					else:
+						if isDisliked(currentNeighbours[i],self.entityRadius):
+							currentNeighbours[i].f_score += 50
+						
+				self.openNodes += currentNeighbours
+			else:
+				fail = True
+				
+		if not fail:
+			return self.recoverPath(self.goal)
+		else:
+			'''bestIndex = 0
+			min_h_score = 100000000
+
+			for i in range(len(self.closedNodes)):
+				h_score = AStar.estimateHeuristicTo((self.goal.worldx,self.goal.worldy), self.closedNodes[i])
+				if h_score < min_h_score:
+					min_h_score = h_score
+					bestIndex = i
+			
+			return self.recoverPath(self.closedNodes[i])'''
+			return
+
+
+	def recoverPath(self,goal):
+		nodePath = [goal]
+		path = []
+
+		while not nodePath[0] == self.start:
+			nodePath.insert(0,self.closedNodes[self.closedNodes.index(AStar.Node(*nodePath[0].cameFromPos))])
+
+		for node in nodePath:
+			path.append((node.worldx, node.worldy))
+
+		self.closedNodes = []
+		self.openNodes = []
+		path.reverse()
+		return path

@@ -1,0 +1,32 @@
+// comment
+// all text after "//" is ignored
+//
+// '-' = level
+// '#' = wall
+// ' ' = empty space
+// '@' = player spawn point
+// bg = background img
+// fg = foreground img
+// -> = new level
+
+
+//test 1
+-######################  ############
+-#                    #  #          #
+-#         @          #  #          #
+-#    #               ####   #      #
+-#    #                      #    ###
+-#    ########################      #
+-#                 #         ####   #
+-#             #   #           #    #
+-#             #   #     #     #    #
+-#             #         #          #
+-###############   ##################
+-             #####
+
+bg = "res/floor.png"
+fg = "res/level.png"
+
+->
+
+

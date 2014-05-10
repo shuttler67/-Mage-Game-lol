@@ -1,0 +1,721 @@
+#!/git/-Mage-Game-lol/PixelToy\ 1.4
+
+import math, sys
+
+from astar import *
+from utilities import *
+
+epicface = loadImage('res/epicface.png')
+fireball = loadImage('res/Fireball.png')
+floor = loadImage('res/floor.png')
+trollface = loadImage('res/trollface.png')
+mails = ['res/mail4.png','res/mail1.png','res/mail2.png','res/mail5.png','res/mail6.png']
+mail4=loadImage('res/postcard.png')
+backgroundWidth = 510
+backgroundHeight = 510
+
+still = loadImage('res/postmanstill.png')
+still2 = loadImage('res/postmanstill2.png')
+charge1 = loadImage('res/postmancharge1.png')
+charge2 = loadImage('res/postmancharge2.png')
+walk1 = loadImage('res/postmanwalk1.png')
+walk2 = loadImage('res/postmanwalk2.png')
+walk3 = loadImage('res/postmanwalk3.png')
+walk4 = loadImage('res/postmanwalk4.png')
+
+RIGHT = "right"
+LEFT  = "left"
+UP    = "up"
+DOWN  = "down"
+NIL = 'nil'
+
+MAXSPEED = 2.7
+MANSIZE = 60
+CAMERASLACKX=250/5
+CAMERASLACKY=200/5
+
+FRAMECOUNT = 0
+allKeysUsed =('a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','0','1','2','3','4','5','6','7','8','9','SHIFT','TAB','SPACE','ESCAPE')
+KEYSTATES = {}
+PREV_KEYSTATES = {}
+for key in allKeysUsed:
+	KEYSTATES[key]= isKeyDown(key)
+
+	
+#MAP
+MAPSIZE= 50
+global MAP, WALLSIZE
+MAP = []
+WALLSIZE = 30
+
+for i in range(MAPSIZE):
+	MAP.append([])
+	for j in range(MAPSIZE):
+		MAP[i].append(j == 0 or j == MAPSIZE-1 or i == 0 or i == MAPSIZE-1)
+
+for i in range(7):
+	MAP[8][10+i] = True
+	MAP[i+1][20] = True
+	MAP[20][i+15] = True
+	MAP[15][i+1]  = True
+# Colours
+#		 R G B Alpha
+RED = (255, 0 , 0 ,255)
+GREEN = ( 0 ,200, 30 ,255)
+BLACK = ( 0 , 0 , 0 ,255)
+BLUE = (0, 0 , 200 ,255)
+GREY = (64,64,64,255)
+WHITE = (255,255,255,255)
+
+class Camera:
+	def update(self,x,y,pause):
+		self.x = x
+		self.y = y
+		self.pause = pause
+		
+	def __init__(self,x,y,pause):
+		self.update(x,y,pause)
+		
+	def getCameraView(self,pos): #vector please
+		return pos.x - self.x, pos.y - self.y
+
+	def getWorldView(self,pos): #vector please
+		return pos.x + self.x, pos.y + self.y
+
+class Entity:
+	def setStatic(self):
+		self.mass = 0.0
+		self.invMass = 0.0
+
+	def __init__(self, x, y, hit_box, restitution = 0.2, density = 1, isDynamic = True):
+		self.pos = Vect(x,y)
+		self.speed = Vect(0,0.0)
+		self.hit_box = hit_box
+		self.restitution = restitution
+		self.directions = []
+		self.netForce = Vect(0.0,0.0)
+		
+		if isinstance(self.hit_box, Rect):
+			self.shape = 'Rect'
+			if self.hit_box.h > self.hit_box.w:
+				self.radius = self.hit_box.h/2
+			else:
+				self.radius = self.hit_box.w/2
+			
+		elif isinstance(self.hit_box, Circ):
+			self.shape = 'Circ'
+			self.radius = self.hit_box.r
+		
+		if isDynamic:
+			self.mass = self.hit_box.Area() * density
+			self.invMass = 1/self.mass
+		else:
+			self.setStatic()
+
+	def applyForce(self,f):
+		self.netForce += f
+
+	def update(self):
+		self.speed += self.netForce * self.invMass
+		self.speed *= 0.9
+		self.directions = []
+		if self.speed.x > 0.5:
+			self.directions.append(RIGHT)
+		if self.speed.x < -0.5:
+			self.directions.append(LEFT)
+		if self.speed.y > 0.5:
+			self.directions.append(UP)
+		if self.speed.y < -0.5:
+			self.directions.append(DOWN)
+
+		self.pos += self.speed
+		self.netForce.Set(0.0,0.0)
+		self.hit_box.update(self.pos.x, self.pos.y)
+		
+	def findCollisionFunc(self,other):
+		if self.shape == 'Rect':
+		
+			if other.shape == 'Rect':
+				SATfunc = AABBvsAABB
+				
+			if other.shape == 'Circ':
+				SATfunc = AABBvsCIRC
+				
+		elif self.shape == 'Circ':
+		
+			if other.shape == 'Rect':
+				SATfunc = CIRCvsAABB
+				
+			if other.shape == 'Circ':
+				SATfunc = CIRCvsCIRC
+		return SATfunc
+
+	def resolveCollision(self, other):
+		SATfunc = self.findCollisionFunc(other)
+		collision = SATfunc(self.hit_box, other.hit_box)
+		if bool(collision):
+			normal, penetration = collision
+			
+			#find relative velocity
+			rv = other.speed - self.speed
+			
+			#find relative velocity in terms of the normal
+			velAlongNormal = Vect.Dot(rv, normal)
+			
+			#if velocities are separating: NO SOLVE
+			if velAlongNormal > 0.0:
+				return
+			
+			if isinstance(self,Enemy) and isinstance(other,Enemy):
+				e = 0.2
+			else:
+				e = min(self.restitution, other.restitution)
+			
+			#find impulse scalar
+			j = -1*(1+e) * velAlongNormal
+			j /= (self.invMass + other.invMass)
+			#Apply impulse
+			impulse = j * normal
+			
+			self.speed -= self.invMass * impulse
+			other.speed += other.invMass * impulse
+
+			#positional correction
+
+			percent = 0.1
+			slop = 0.01
+			correction = max(abs(penetration) - slop, 0.0) / (self.invMass + other.invMass) * percent * normal
+			self.pos -= self.invMass * correction
+			other.pos += other.invMass * correction
+			return True
+		return False
+		
+#Wall class
+class Wall(Entity):
+	def __init__(self,x1,y1,x2,y2): 
+		hit_box = Rect(x2 - (x2 - x1)/2, y2 - (y2 - y1)/2, (x2 - x1), (y2 - y1)) #confusing change from min-max type of rect to xywh type of rect
+		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, isDynamic = False)
+	def draw(self,cam):
+		useColourList(BLUE)
+		cam_x, cam_y = cam.getCameraView(self.hit_box.center)
+		rect = Rect(self.hit_box.center.x, self.hit_box.center.y, self.hit_box.w, self.hit_box.h)
+		rect.update(cam_x, cam_y)
+		drawRect(rect)
+
+#Wall class
+
+#Projectile class
+class Projectile:
+	def __init__(self,x,y,tx,ty,image):
+		if round(random()) == 0:
+			spin = -10
+		else: 
+			spin = 10
+
+		self.rotateSpeed = spin
+		self.image = image
+		self.image.setRotation(int(random()*360))
+		self.pos = Vect(x,y)
+		self.size = 15 + random()*7
+
+		cosine, sine = findTrajectory(self.pos.x,self.pos.y,tx,ty)
+		self.trajectory = Vect(cosine, sine)
+		self.trajectory *= 16
+	def move(self):
+		self.pos += self.trajectory
+
+	def draw(self,cam):
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		if not cam.pause:
+			self.image.rotate(self.rotateSpeed) 
+		drawImage(self.image,cam_x, cam_y,self.size,self.size)
+		
+	def checkIfOut(self,cam):
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		return cam_x < -self.size or cam_x > _screenWidth+self.size or cam_y < -self.size or cam_y > _screenHeight+self.size
+		
+	def checkIfCollide(self,rect_or_circ):
+		if isinstance(rect_or_circ, Rect):
+			return bool(CIRCvsAABB(Circ(self.pos.x,self.pos.y,self.size), rect_or_circ))
+		else:
+			return bool(CIRCvsCIRC(Circ(self.pos.x,self.pos.y,self.size), rect_or_circ))
+#Projectile class
+
+		
+#Enemies
+class Enemy(Entity):
+	def __init__(self, x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density = 1):	
+		Entity.__init__(self,x,y,hit_box, knockback, density)
+		self.maxHealth = maxHealth-10+random()*10
+		self.health = self.maxHealth
+		self.minAttackDamage = minAttackDamage
+		self.maxAttackDamage = maxAttackDamage
+		self.radar = radar
+		self.moveSpeed = speed
+		
+		self.astar = AStar(self.radius)
+		self.AStarRepeatTime = int(random()*200)
+		self.isWandering = True
+		self.hasPath = False
+		self.currentNode = (self.pos.x,self.pos.y)
+		
+		self.attackTimer = 0
+		
+	@staticmethod
+	def canMoveTo(node):
+		if node.worldx < 0 or node.worldy < 0 or node.worldx > MAPSIZE-1 or node.worldy > MAPSIZE-1:
+			return False
+		
+		if MAP[node.worldx][node.worldy]:
+			return False
+
+		if not node.isParentless:
+			parent = node.cameFromPos
+	
+			for i in (-1,1):
+				if abs(parent[0]-node.worldx) + abs(parent[1]-node.worldy) == 2:
+					if MAP[ parent[0] + i][ parent[1] ] or MAP[ parent[0] ][ parent[1] + i]:
+						return False
+		return True
+	@staticmethod
+	def isDisliked(node,radius):
+		deletionDepth = (radius*2-1)/WALLSIZE
+		
+		for i in xrange(-deletionDepth,deletionDepth):
+			if abs(node.worldx + i) >= MAPSIZE or abs(node.worldy + i) >= MAPSIZE:
+				continue
+			if MAP[node.worldx + i][node.worldy] or MAP[node.worldx][node.worldy + i] or MAP[node.worldx + i][node.worldy + i] or MAP[node.worldx - i][node.worldy - i]:
+				return True
+		
+	def followPath(self, isNewPath = False):
+		if len(self.path) != 0:
+			if isNewPath:
+				node = self.path.pop()
+				self.currentNode = (node[0] * WALLSIZE + WALLSIZE/2 , node[1] * WALLSIZE + WALLSIZE/2)
+				
+			elif CIRCvsCIRC(Circ(self.currentNode[0],self.currentNode[1],0),Circ(self.pos.x,self.pos.y,self.radius/2)): #If player is within node boundary
+
+				node = self.path.pop()
+				self.currentNode = (node[0] * WALLSIZE + WALLSIZE/2 , node[1] * WALLSIZE + WALLSIZE/2)
+				
+			self.walkTowards(self.currentNode)
+		else:
+			return True
+	def wander(self):
+		global FRAMECOUNT
+
+	def update(self,playerPos):
+
+		#global FRAMECOUNT
+		if CIRCvsCIRC(Circ(playerPos.x, playerPos.y,MANSIZE/2),Circ(self.pos.x,self.pos.y,self.radar)):
+			if self.isWandering:
+				path = self.astar.findPath((int(self.pos.x/WALLSIZE),int(self.pos.y/WALLSIZE)),(int(playerPos.x/WALLSIZE),int(playerPos.y/WALLSIZE)),self.canMoveTo, self.isDisliked)
+				if path != None:
+					self.path = path
+					self.followPath(True)
+					self.hasPath = True
+				else:
+					self.hasPath = False
+					self.attackTimer = 1
+
+				self.isWandering = False
+
+			elif FRAMECOUNT % 200 == self.AStarRepeatTime:
+				self.isWandering = True
+					
+			elif self.hasPath:
+				if self.followPath():
+					self.attackTimer = 1
+					self.hasPath = False
+					
+			if self.attackTimer != 0:
+				self.walkTowards((playerPos.x, playerPos.y))
+				self.attackTimer += 1
+				if self.attackTimer == 60:
+					self.attackTimer = 0
+					self.isWandering = True 
+				
+		else:
+			self.isWandering = True
+			self.wander()
+		
+		Entity.update(self)
+
+	def walkTowards(self,posTuple):
+		#print posTuple
+		cos, sin = findTrajectory(self.pos.x,self.pos.y,*posTuple)
+		self.applyForce(Vect(cos * self.moveSpeed * self.mass, sin * self.moveSpeed * self.mass))
+
+	def draw(self,cam):
+			
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		
+		useColourList(GREY)
+		drawRectangle(cam_x - self.radius, cam_y  + self.radius, self.radius*2, 10)
+		useColourList(RED)
+		drawRectangle(cam_x - self.radius+2, cam_y + self.radius+2, self.health/self.maxHealth*(self.radius*2 - 4), 6)
+	
+	def drawPath(self,cam):
+		if not self.hasPath:
+			return
+		path = self.path[:]
+		
+		for i in range(len(path)):
+			path[i] = (path[i][0] * WALLSIZE , path[i][1] * WALLSIZE)
+			
+		for i,node in enumerate(path):
+			if i+1 != len(path):
+				node1 = path[i]
+				node2 = path[i+1]
+				x1,y1 = cam.getCameraView(Vect(*node1))
+				x2,y2 = cam.getCameraView(Vect(*node2))
+				useColourList(GREEN)
+				drawLine(x1 + WALLSIZE/2,y1 + WALLSIZE/2,x2 + WALLSIZE/2,y2 + WALLSIZE/2)
+		
+		nx,ny = cam.getCameraView(Vect(*self.currentNode))
+		drawCircle(nx,ny,5)
+
+	def touchAttack(self,player):
+		if self.resolveCollision(player):
+			player.health -= self.minAttackDamage+random()*(self.maxAttackDamage-self.minAttackDamage)
+			self.isWandering = True
+		
+# x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density
+class EpicFace(Enemy):
+	def __init__(self,x,y):
+		Enemy.__init__(self,x,y,Circ(x,y,15), 40, 2, 5, 4, 600, 0.29,2)
+
+	def draw(self,cam):
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		drawImage(epicface, cam_x, cam_y, self.hit_box.r * 2,self.hit_box.r * 2)
+		Enemy.draw(self,cam)
+		
+class TrollFace(Enemy):
+	def __init__(self,x,y):
+		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 6, 900, 0.2,4)
+
+	def draw(self,cam):
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		
+		drawImage(trollface,cam_x, cam_y, self.hit_box.r * 2,self.hit_box.r * 2)
+		Enemy.draw(self,cam)
+
+#Enemies
+
+#PLAY WITH MEEEEE class
+class Player(Entity):
+	def __init__(self):
+		Entity.__init__(self,_screenWidth, _screenHeight, Rect(_screenWidth, _screenHeight, MANSIZE/3, MANSIZE),100,1)#Circ(0.0,0.0,MANSIZE),100,1)#
+		self.inAttack = False
+		self.maxHealth = 200.0
+		self.health = 200.0
+	
+		self.maxMana = 100.0
+		self.mana = self.maxMana
+		self.isMoving = False
+		self.facing = RIGHT
+		
+	def update(self):
+		accel = Vect(0.0,0.0)
+
+		if self.inAttack:
+			movement = 0.1
+		else:
+			movement = 0.35
+				
+		if KEYSTATES['w']:
+			accel.y += movement
+		if KEYSTATES['a']:
+			accel.x -= movement
+		if KEYSTATES['s']:
+			accel.y -= movement
+		if KEYSTATES['d']:
+			accel.x += movement
+
+		if accel.x != 0.0 and accel.y != 0.0:
+			accel *= 0.7 # cos(45) = ~0.707
+		
+		accel *= self.mass
+		
+		self.isMoving = bool(self.directions)
+
+		self.applyForce(accel)
+		Entity.update(self)
+		
+	def draw(self,cam):
+		global FRAMECOUNT
+		if self.facing == RIGHT and LEFT in self.directions:
+			self.facing = LEFT
+		if self.facing == LEFT and RIGHT in self.directions:
+			self.facing = RIGHT
+			
+		cam_x, cam_y = cam.getCameraView(self.pos)
+		
+		if KEYSTATES['t'] and not PREV_KEYSTATES['t']:
+			mx,my = cam.getWorldView(Vect(_mouseX,_mouseY))
+			self.pos.Set(mx,my)
+		if self.inAttack:
+			if FRAMECOUNT%30<15:
+				image = charge1
+			else:
+				image = charge2
+		
+		elif self.isMoving:
+			if self.facing == RIGHT:
+				if FRAMECOUNT%30>15:
+					image = walk3
+				else:
+					image = walk4
+			if self.facing == LEFT:
+				if FRAMECOUNT%30<15:
+					image = walk1
+				else:
+					image = walk2
+
+		else:
+			if self.facing == LEFT:
+				image = still
+			else:
+				image = still2
+				
+		drawImage(image,cam_x, cam_y,MANSIZE,MANSIZE)
+
+#Player class
+
+#GUI class
+
+class GUI:
+	def __init__(self):
+		self.buttons = [Button(50,_screenHeight-35/2,100,'pause','pause')]
+	def update(self,pause):
+		if pause:
+			self.buttons = [Button(_screenWidth/2,_screenHeight/2+35/2,200,'resume game','unpause'),Button(_screenWidth/2,_screenHeight/2-35/2,200,'main menu',None)]
+		else:
+			self.buttons = [Button(50,_screenHeight-35/2,100,'pause','pause')]
+			
+	def handleMouseUp(self):
+		returnValue = None
+		overButton = False
+		for button in self.buttons:
+			if button.isUnderMouse(Vect(_mouseX,_mouseY)):
+				overButton = True
+				returnValue = button.returnValue
+		return returnValue, overButton
+		
+	def drawButtons(self):
+		for button in self.buttons:
+			button.draw(Vect(_mouseX,_mouseY))
+			
+	def draw(self,health,mana,maxHealth,maxMana):
+		barWidth = _screenWidth/3
+		useColourList(GREY)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-19,barWidth,17)
+		drawRectangle(_screenWidth/2-barWidth/2,_screenHeight-37,barWidth,17)
+
+		useColourList(RED)
+		drawRectangle(_screenWidth/2-barWidth/2+3, _screenHeight-17, health/maxHealth*(barWidth-4), 13)
+		useColourList(BLUE)
+		drawRectangle(_screenWidth/2-barWidth/2+2,_screenHeight-35,mana/maxMana*(barWidth-4), 13)
+
+		useColourList(WHITE)
+		drawString(_screenWidth/2-len(str(int(health)))*6,_screenHeight-18,str(int(health)))
+		drawString(_screenWidth/2-len(str(int(mana)))*6,_screenHeight-36,str(int(mana)))
+#GOOEY class
+
+#Level Up! class
+class Level:
+	def __init__(self,levelDICT):
+		self.walls = levelDICT["WALLS"]
+		self.enemies = levelDICT["ENEMIES"]
+		self.proj = []
+
+	def handleObjects(self,player,cam):	
+		
+		for i in range(len(self.proj)-1, -1, -1):
+			self.proj[i].move()
+			if self.proj[i].checkIfOut(cam):
+				del self.proj[i]
+			else:
+				for wall in self.walls:
+					if self.proj[i].checkIfCollide(wall.hit_box):
+						del self.proj[i]
+						break
+
+		for i in range(len(self.enemies)-1, -1, -1):
+			self.enemies[i].update(player.pos)
+			if self.enemies[i].resolveCollision(player):
+				player.health -= self.enemies[i].minAttackDamage+random()*(self.enemies[i].maxAttackDamage-self.enemies[i].minAttackDamage)
+				self.enemies[i].isWandering = True
+			
+			for j in range(len(self.proj)-1, -1, -1):
+				if self.proj[j].checkIfCollide(self.enemies[i].hit_box):
+					if not KEYSTATES['c']:
+						del self.proj[j]
+					self.enemies[i].health -= random()*(10-5)+5
+					
+			if self.enemies[i].health <= 0:
+				del self.enemies[i]
+				if round(random()) == 0:
+					self.enemies.append(EpicFace(200,300))
+				else:
+					self.enemies.append(TrollFace(800,350))
+					
+				if round(random()) == 0:
+					if round(random()) == 0:
+						self.enemies.append(EpicFace(500,300))
+					else:
+						self.enemies.append(TrollFace(200,750))
+				
+		for index, enemy1 in enumerate(self.enemies[:-1]):
+			for enemy2 in self.enemies[index+1:]:
+				enemy1.resolveCollision(enemy2)
+		
+		entities = self.enemies + [player]
+		for wall in self.walls:
+			for entity in entities:
+				wall.resolveCollision(entity)
+
+	def spawnProjectile(self,overButtons,playerPos,cam):
+		random1 = int(random()*len(mails))
+		mail = loadImage(mails[random1])
+	
+		if not overButtons:
+			self.proj.append(Projectile(playerPos.x,playerPos.y,_mouseX+cam.x,_mouseY+cam.y,mail))
+
+	def drawLevel(self,cam):
+		for i in range(0,9):
+			for j in range(0,9):
+				drawImage(floor, (j*backgroundWidth)-cam.x, (i*backgroundHeight)-cam.y, backgroundWidth,backgroundHeight)
+		for wall in self.walls:
+			wall.draw(cam)
+
+		for projectile in self.proj:
+			projectile.draw(cam)
+
+		for enemy in self.enemies:
+			enemy.draw(cam)
+			enemy.drawPath(cam)
+#Level class
+
+class Game:
+	def __init__(self,levels):
+		self.man = Player()
+		self.cam = Camera(-_screenWidth/2, -_screenHeight/2, False)
+		self.mousedown = False
+		self.currentLevel = Level(LEVELS[0].copy())
+		self.GUI = GUI()
+		
+	def gameLoop(self):	
+		if self.update():	
+			self.draw()
+			return True
+
+	def update(self):
+		firstMousedown = False
+		firstMouseup = False
+			
+		if isLeftMouseDown() and not self.mousedown:
+			firstMousedown = True
+			self.mousedown = True
+		if not isLeftMouseDown() and self.mousedown:
+			firstMouseup = True
+			self.mousedown = False
+
+		if firstMouseup:
+			returnValue, overButtons = self.GUI.handleMouseUp()
+			if returnValue == 'pause':
+				self.cam.pause = True
+			elif returnValue == 'unpause':
+				self.cam.pause = False
+			if not self.cam.pause:
+				self.currentLevel.spawnProjectile(overButtons,self.man.pos,self.cam)
+		
+		if KEYSTATES['c']:
+			self.currentLevel.spawnProjectile(False,self.man.pos,self.cam)
+
+		if KEYSTATES['ESCAPE'] and not PREV_KEYSTATES['ESCAPE']:
+			self.cam.pause = not self.cam.pause
+		
+		if not self.cam.pause:
+			self.man.inAttack = self.mousedown
+			self.man.update()
+			self.currentLevel.handleObjects(self.man,self.cam)
+
+		self.GUI.update(self.cam.pause)
+		if self.man.health <= 0:
+			return False
+		cam_x, cam_y = self.cam.getCameraView(self.man.pos)
+		cam_x -= _screenWidth/2
+		cam_y -= _screenHeight/2
+
+		displace = abs(cam_x) - CAMERASLACKX
+		if displace > 0:
+			if cam_x < 0:
+				self.cam.x -= displace
+			else:
+				self.cam.x += displace
+
+		displace = abs(cam_y) - CAMERASLACKY
+		if displace > 0:
+			if cam_y < 0:
+				self.cam.y -= displace
+			else:
+				self.cam.y += displace
+			
+			
+		if KEYSTATES['p']:
+			print self.man.pos.x, self.man.pos.y
+		return True
+	def draw(self):
+		self.currentLevel.drawLevel(self.cam)
+		self.man.draw(self.cam)
+		self.GUI.draw(self.man.health,self.man.mana,self.man.maxHealth,self.man.maxMana)
+		
+		if self.cam.pause:
+			useColour(0,0,0,130)
+			drawRectangle(0,0,_screenWidth,_screenHeight)
+			drawImage(mail4,_screenWidth/2,_screenHeight/2,_screenWidth/2,_screenWidth/2)
+			
+		self.GUI.drawButtons()	
+
+class Menu:
+	def __init__(self,buttonList):
+		self.buttons = buttonList
+	def update(self):
+		pass
+	def draw(self):
+		for button in self.buttons:
+			button.draw(Vect(_mouseX,_mouseY))
+
+#Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
+LEVELS= [{"WALLS":[],"ENEMIES":[EpicFace(400,300)]}] #TrollFace(300,300)
+for x in range(len(MAP)):
+	for y in range(len(MAP[x])):
+		if MAP[x][y]:
+			LEVELS[0]['WALLS'].append(Wall(x*WALLSIZE,y*WALLSIZE,x*WALLSIZE+WALLSIZE,y*WALLSIZE+WALLSIZE))
+
+game = Game(LEVELS[:])
+fail = False
+
+while True:
+	PREVIOUSscreenHeight = _screenHeight
+	PREV_KEYSTATES = KEYSTATES.copy()
+	newFrame()
+	FRAMECOUNT += 1
+
+	if not fail:
+		if not game.gameLoop():
+			fail = True
+	else:							
+		drawString(_screenWidth/2-12*5,300,"Game Over!")
+		drawString(_screenWidth/2-12*10,280,"Press 'r' to restart!")
+		if isKeyDown('r'):
+			game = Game(LEVELS[:])
+			fail = False
+
+	for key in allKeysUsed:
+		KEYSTATES[key]= isKeyDown(key)
+	game.gameLoop()
+			
+
+
