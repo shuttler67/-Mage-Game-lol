@@ -5,23 +5,24 @@ import math, sys
 from astar import *
 from utilities import *
 
-epicface = loadImage('res/epicface.png')
-fireball = loadImage('res/Fireball.png')
+epicface = loadImage('res/epicface.png',False)
+fireball = loadImage('res/Fireball.png',False)
 floor = loadImage('res/floor.png')
 trollface = loadImage('res/trollface.png')
+cloudLightning = loadImage('res/cloud.png',False)
 mails = ['res/mail4.png','res/mail1.png','res/mail2.png','res/mail5.png','res/mail6.png']
 mail4=loadImage('res/postcard.png')
 backgroundWidth = 510
 backgroundHeight = 510
 
-still = loadImage('res/postmanstill.png')
-still2 = loadImage('res/postmanstill2.png')
-charge1 = loadImage('res/postmancharge1.png')
-charge2 = loadImage('res/postmancharge2.png')
-walk1 = loadImage('res/postmanwalk1.png')
-walk2 = loadImage('res/postmanwalk2.png')
-walk3 = loadImage('res/postmanwalk3.png')
-walk4 = loadImage('res/postmanwalk4.png')
+still = loadImage('res/postmanstill.png',False)
+still2 = loadImage('res/postmanstill2.png',False)
+charge1 = loadImage('res/postmancharge1.png',False)
+charge2 = loadImage('res/postmancharge2.png',False)
+walk1 = loadImage('res/postmanwalk1.png',False)
+walk2 = loadImage('res/postmanwalk2.png',False)
+walk3 = loadImage('res/postmanwalk3.png',False)
+walk4 = loadImage('res/postmanwalk4.png',False)
 
 RIGHT = "right"
 LEFT  = "left"
@@ -66,6 +67,44 @@ BLACK = ( 0 , 0 , 0 ,255)
 BLUE = (0, 0 , 200 ,255)
 GREY = (64,64,64,255)
 WHITE = (255,255,255,255)
+
+def readLevelFile():
+	levelFile = open('levels','r')
+	data = levelFile.readlines() + ['\r\n']
+	levelFile.close()
+	
+	levelTextMap = [] #list to hold level text format thing
+	levelWalls = []
+	
+	for lineNum in range(len(data)):
+		line = data[lineNum].rstrip('\r\n')
+		if '//' in line:
+			line = line[:line.find('//')]
+		if line !='':
+			if '-' in line:
+				line = line[1:]
+				levelTextMap.append(line)
+			
+			if '>' in line:
+				levelTextMap.reverse()
+				for y,mapLine in enumerate(levelTextMap):
+					wallLength = 0
+					wallStartIndex = None
+					for x,char in enumerate(mapLine):
+						if char == "#":
+							if wallLength == 0:
+								wallStartIndex = x
+							wallLength += 1
+						if (x == len(mapLine)-1 or char == " ") and wallLength != 0:
+							levelWalls.append(Wall(wallStartIndex*WALLSIZE,y*WALLSIZE,(wallStartIndex+wallLength)*WALLSIZE,y*WALLSIZE+WALLSIZE))
+							wallLength = 0
+
+				levelTextMap = []
+			print line
+		
+	return levelWalls
+	
+
 
 class Camera:
 	def update(self,x,y,pause):
@@ -197,6 +236,7 @@ class Wall(Entity):
 		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, isDynamic = False)
 	def draw(self,cam):
 		useColourList(BLUE)
+		useColour(0,0,255)
 		cam_x, cam_y = cam.getCameraView(self.hit_box.center)
 		rect = Rect(self.hit_box.center.x, self.hit_box.center.y, self.hit_box.w, self.hit_box.h)
 		rect.update(cam_x, cam_y)
@@ -348,7 +388,7 @@ class Enemy(Entity):
 					self.walkAway(playerPos)
 				else:
 					move = Vect(*findTrajectory(self.pos.x,self.pos.y, playerPos.x, playerPos.y))
-					move *= self.moveSpeed *3
+					move *= self.moveSpeed
 					move *= self.mass
 					move.Rotate(math.radians(90.0))
 					self.applyForce(move)
@@ -420,13 +460,23 @@ class TrollFace(Enemy):
 
 		drawImage(trollface,cam_x, cam_y, self.hit_box.r * 2,self.hit_box.r * 2)
 		Enemy.draw(self,cam)
+		
+class CloudMan(Enemy):
+	def __init__(self,x,y):
+		Enemy.__init__(self,x,y,Circ(x,y,44), 100, 7, 20, 3, 1900, 0.35,2)
+
+	def draw(self,cam):
+		cam_x, cam_y = cam.getCameraView(self.pos)
+
+		drawImage(cloudLightning,cam_x, cam_y, self.hit_box.r * 2,self.hit_box.r * 2)
+		Enemy.draw(self,cam)
 
 #Enemies
 
 #PLAY WITH MEEEEE class
 class Player(Entity):
-	def __init__(self):
-		Entity.__init__(self,_screenWidth, _screenHeight, Rect(_screenWidth, _screenHeight, MANSIZE/3, MANSIZE),100,1)#Circ(0.0,0.0,MANSIZE),100,1)#
+	def __init__(self,x,y):
+		Entity.__init__(self,x,y, Rect(x,y, MANSIZE/3, MANSIZE),100,1)#Circ(0.0,0.0,MANSIZE),100,1)#
 		self.inAttack = False
 		self.maxHealth = 200.0
 		self.health = 200.0
@@ -516,7 +566,7 @@ class GUI:
 		self.buttons = [Button(50,_screenHeight-35/2,100,'pause','pause')]
 	def update(self,pause):
 		if pause:
-			self.buttons = [Button(_screenWidth/2,_screenHeight/2+35/2,200,'resume game','unpause'),Button(_screenWidth/2,_screenHeight/2-35/2,200,'main menu',None)]
+			self.buttons = [Button(_screenWidth/2,_screenHeight/2+35,200,'resume game','unpause'),Button(_screenWidth/2,_screenHeight/2,200,'main menu','main'),Button(_screenWidth/2,_screenHeight/2-35,200,'quit game','quit')]
 		else:
 			self.buttons = [Button(50,_screenHeight-35/2,100,'pause','pause')]
 			
@@ -552,28 +602,27 @@ class GUI:
 #Level Up! class
 class Level:
 	def __init__(self):
-		self.walls = []
+		self.walls = readLevelFile()
 		self.enemies = []
 		self.proj = []
-		self.enemySpawnRate = 400
+		self.enemySpawnRate = 700
 
-		for x in range(len(MAP)):
-			for y in range(len(MAP[x])):
-				if MAP[x][y]:
-					self.walls.append(Wall(x*WALLSIZE,y*WALLSIZE,x*WALLSIZE+WALLSIZE,y*WALLSIZE+WALLSIZE))
-	
 	def handleObjects(self,player,cam):	
 		
 		if FRAMECOUNT % self.enemySpawnRate == 0:
 			ranPosX = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
 			ranPosY = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
-
-			if round(random()) == 0:
+			
+			randomEnemy = random()
+			
+			if randomEnemy < 0.3:
 				self.enemies.append(EpicFace(ranPosX,ranPosY))
+			elif randomEnemy < 0.6:
+				self.enemies.append(CloudMan(ranPosX,ranPosY))
 			else:
 				self.enemies.append(TrollFace(ranPosX,ranPosY))
 
-			self.enemySpawnRate = 1000000#1+int(random() * 500)
+			self.enemySpawnRate = 1+int(random() * 500)
 
 		for i in range(len(self.proj)-1, -1, -1):
 			self.proj[i].move()
@@ -622,6 +671,7 @@ class Level:
 		for i in range(0,9):
 			for j in range(0,9):
 				drawImage(floor, (j*backgroundWidth)-cam.x, (i*backgroundHeight)-cam.y, backgroundWidth,backgroundHeight)
+				
 		for wall in self.walls:
 			wall.draw(cam)
 
@@ -635,7 +685,7 @@ class Level:
 
 class Game:
 	def __init__(self):
-		self.man = Player()
+		self.man = Player(300,300)
 		self.cam = Camera(-_screenWidth/2, -_screenHeight/2, False)
 		self.mousedown = False
 		self.currentLevel = Level()
@@ -659,10 +709,15 @@ class Game:
 
 		if firstMouseup:
 			returnValue, overButtons = self.GUI.handleMouseUp()
-			if returnValue == 'pause':
+			
+			if returnValue == None:
+				pass
+			elif returnValue == 'pause':
 				self.cam.pause = True
 			elif returnValue == 'unpause':
 				self.cam.pause = False
+			else:
+				return returnValue
 			if not self.cam.pause:
 				self.currentLevel.spawnProjectile(overButtons,self.man.pos,self.cam)
 		
@@ -679,7 +734,7 @@ class Game:
 
 		self.GUI.update(self.cam.pause)
 		if self.man.health <= 0:
-			return False
+			return "player dead"
 		cam_x, cam_y = self.cam.getCameraView(self.man.pos)
 		cam_x -= _screenWidth/2
 		cam_y -= _screenHeight/2
@@ -701,7 +756,6 @@ class Game:
 			
 		if KEYSTATES['p']:
 			print self.man.pos.x, self.man.pos.y
-		return True
 
 	def draw(self):
 		self.currentLevel.drawLevel(self.cam)
@@ -726,16 +780,32 @@ class Game:
 class Menu:
 	def __init__(self,buttonList):
 		self.buttons = buttonList
+		self.mousedown = False
+
 	def update(self):
-		pass
+		firstMousedown = False
+		firstMouseup = False
+			
+		if isLeftMouseDown() and not self.mousedown:
+			firstMousedown = True
+			self.mousedown = True
+		if not isLeftMouseDown() and self.mousedown:
+			firstMouseup = True
+			self.mousedown = False
+			
+		if firstMouseup:
+			for button in self.buttons:
+				if button.isUnderMouse(Vect(_mouseX,_mouseY)):
+					return button.returnValue
+
 	def draw(self):
 		for button in self.buttons:
 			button.draw(Vect(_mouseX,_mouseY))
 
 #Wall((POS),SIZE) ENEMY(HEALTH;(POS);SIZE;(ATCK DMG),KNOCKBACK;RADAR)
+MENUS = {"main": Menu([Button(_screenWidth/2,_screenHeight/2+35/2,200,'PLAY!','game'),Button(_screenWidth/2,_screenHeight/2-35/2,200,'QUIT!','quit')])}
 
-game = Game()
-fail = False
+currentWindow = MENUS["main"]
 
 while True:
 	PREVIOUSscreenHeight = _screenHeight
@@ -745,16 +815,22 @@ while True:
 	
 	for key in allKeysUsed:
 		KEYSTATES[key]= isKeyDown(key)
-		
-	if not fail:
-		if not game.gameLoop():
-			fail = True
-			game = None
-	else:							
-		drawString(_screenWidth/2-12*5,300,"Game Over!")
-		drawString(_screenWidth/2-12*10,280,"Press 'r' to restart!")
-		if isKeyDown('r'):
-			game = Game()
+	
+	updateReport = currentWindow.update()
+	
+	if updateReport:
+		if updateReport == "player dead":
+			currentWindow = MENUS["main"]
+			
+		elif updateReport == "game":
+			currentWindow = Game()
 			FRAMECOUNT = 0
-			fail = False
+		
+		elif updateReport == "quit":
+			quit()
+		else:
+			currentWindow = MENUS[updateReport]
+	else:
+		currentWindow.draw()
+				
 			

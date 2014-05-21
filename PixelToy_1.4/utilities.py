@@ -3,7 +3,7 @@ import math
 buttonUp = loadImage('res/buttonUp.png')
 buttonDown = loadImage('res/buttonDown.png')
 #Utilities
-
+print "loading utilities..."
 def Clamp(_min, _max, a):
 	if a < _min:
 		return _min
@@ -277,7 +277,7 @@ class Button:
 		_min, _max = self.rect.findMinMax()
 		if isLeftMouseDown() and self.isUnderMouse(mousePos):						
 			drawImageRect(buttonDown,self.rect)
-			drawString(self.rect.center.x-len(self.text)*6, _min.y+11,self.text)
+			drawString(self.rect.center.x-len(self.text)*5, _min.y+11,self.text)
 		else:
 			drawImageRect(buttonUp,self.rect)
-			drawString(self.rect.center.x-len(self.text)*6, _min.y+13,self.text)
+			drawString(self.rect.center.x-len(self.text)*5, _min.y+13,self.text)
