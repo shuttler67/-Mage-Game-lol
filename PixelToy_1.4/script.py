@@ -43,23 +43,9 @@ for key in allKeysUsed:
 	KEYSTATES[key]= isKeyDown(key)
 
 	
-#MAP
-MAPSIZE= 50
-global MAP, WALLSIZE
-MAP = []
+global WALLSIZE
 WALLSIZE = 30
 
-for i in range(MAPSIZE):
-	MAP.append([])
-	for j in range(MAPSIZE):
-		MAP[i].append(j == 0 or j == MAPSIZE-1 or i == 0 or i == MAPSIZE-1)
-
-for i in range(7):
-	MAP[8][10+i] = True
-	MAP[i+1][20] = True
-	MAP[20][i+15] = True
-	MAP[15][i+1]  = True
-# Colours
 #		 R G B Alpha
 RED = (255, 0 , 0 ,255)
 GREEN = ( 0 ,200, 30 ,255)
@@ -75,6 +61,7 @@ def readLevelFile():
 	
 	levelTextMap = [] #list to hold level text format thing
 	levelWalls = []
+	levelWallMAP = []
 	
 	for lineNum in range(len(data)):
 		line = data[lineNum].rstrip('\r\n')
@@ -87,22 +74,31 @@ def readLevelFile():
 			
 			if '>' in line:
 				levelTextMap.reverse()
-				for y,mapLine in enumerate(levelTextMap):
+				for y in range(len(levelTextMap)):
 					wallLength = 0
 					wallStartIndex = None
-					for x,char in enumerate(mapLine):
-						if char == "#":
+					
+					for x in range(len(levelTextMap[y])):
+
+						if y == 0:
+							levelWallMAP.append([])
+						
+						if levelTextMap[y][x] == "#":
 							if wallLength == 0:
 								wallStartIndex = x
 							wallLength += 1
-						if (x == len(mapLine)-1 or char == " ") and wallLength != 0:
+							levelWallMAP[x].append(True)
+						else:
+							levelWallMAP[x].append(False)
+							
+						if (x == len(levelTextMap[y])-1 or levelTextMap[y][x] == " ") and wallLength != 0:
 							levelWalls.append(Wall(wallStartIndex*WALLSIZE,y*WALLSIZE,(wallStartIndex+wallLength)*WALLSIZE,y*WALLSIZE+WALLSIZE))
 							wallLength = 0
+							
 
 				levelTextMap = []
-			print line
 		
-	return levelWalls
+	return levelWalls, levelWallMAP
 	
 
 
@@ -156,7 +152,7 @@ class Entity:
 
 	def update(self):
 		self.speed += self.netForce * self.invMass
-		self.speed *= 0.9
+		self.speed *= 1.001
 		self.directions = []
 		if self.speed.x > 0.5:
 			self.directions.append(RIGHT)
@@ -233,7 +229,7 @@ class Entity:
 class Wall(Entity):
 	def __init__(self,x1,y1,x2,y2): 
 		hit_box = Rect(x2 - (x2 - x1)/2, y2 - (y2 - y1)/2, (x2 - x1), (y2 - y1)) #confusing change from min-max type of rect to xywh type of rect
-		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, isDynamic = False)
+		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, 1, isDynamic = False)
 	def draw(self,cam):
 		useColourList(BLUE)
 		useColour(0,0,255)
@@ -284,8 +280,11 @@ class Projectile:
 		
 #Enemies
 class Enemy(Entity):
-	def __init__(self, x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density = 1):	
+	def __init__(self, x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density = 1):
+		#initialise Entity part of Enemy
 		Entity.__init__(self,x,y,hit_box, knockback, density)
+		
+		#basic setup
 		self.maxHealth = maxHealth-10+random()*10
 		self.health = self.maxHealth
 		self.minAttackDamage = minAttackDamage
@@ -293,44 +292,47 @@ class Enemy(Entity):
 		self.radar = radar
 		self.moveSpeed = speed
 		
-		self.astar = AStar(self.radius)
+		#astar setup
+		self.astar = AStar(self.radius, self.canMoveTo, self.isDisliked)
 		self.AStarRepeatTime = int(random()*100)
+		self.hasPath = False
+		self.currentNode = (self.pos.x,self.pos.y)
 		
+		# AI setup
 		self.isWandering = True
 		self.isCirclingTimer = 0
 		self.attackTimer = 0
-		
-		self.hasPath = False
-		self.currentNode = (self.pos.x,self.pos.y)
 
-		
 	@staticmethod
-	def canMoveTo(node):
-		if node.worldx < 0 or node.worldy < 0 or node.worldx > MAPSIZE-1 or node.worldy > MAPSIZE-1:
+	def canMoveTo(node, MAP):
+		
+		if node.x < 0 or node.y < 0 or node.x >= len(MAP)-1 or node.y >= len(MAP[0])-1:
 			return False
 		
-		if MAP[node.worldx][node.worldy]:
+		if MAP[node.x][node.y]:
 			return False
 
 		if not node.isParentless:
 			parent = node.cameFromPos
 	
 			for i in (-1,1):
-				if abs(parent[0]-node.worldx) + abs(parent[1]-node.worldy) == 2:
+				if abs(parent[0]-node.x) + abs(parent[1]-node.y) == 2:
 					if MAP[ parent[0] + i][ parent[1] ] or MAP[ parent[0] ][ parent[1] + i]:
 						return False
 		return True
 	@staticmethod
-	def isDisliked(node,radius):
-		deletionDepth = (radius*2-1)/WALLSIZE
+	def isDisliked(node,radius, MAP):
+		deletionDepth = int(round(radius/float(WALLSIZE)))
 		
 		for i in xrange(-deletionDepth,deletionDepth):
 			for j in xrange(-deletionDepth,deletionDepth):
-				if abs(node.worldx) + abs(i) >= MAPSIZE or abs(node.worldy) + abs(j) >= MAPSIZE:
+				if abs(node.x) + abs(i) >= len(MAP) or abs(node.y) + abs(j) >= len(MAP[0]):
 					continue
 				if i == 0 and j == 0:
 					continue
-				if MAP[node.worldx + i][node.worldy + j]:
+				if node.x + i < 0 or node.y + j < 0 or node.x + i > len(MAP)-1 or node.y + j > len(MAP[0])-1:
+					return True
+				if MAP[node.x + i][node.y + j]:
 					return True
 		
 	def followPath(self, isNewPath = False):
@@ -347,15 +349,16 @@ class Enemy(Entity):
 			self.walkTowards(self.currentNode)
 		else:
 			return True
+			
 	def wander(self):
 		global FRAMECOUNT
 
-	def update(self,playerPos):
+	def update(self,playerPos, MAP):
 
 		#global FRAMECOUNT
 		if CIRCvsCIRC(Circ(playerPos.x, playerPos.y,MANSIZE/2),Circ(self.pos.x,self.pos.y,self.radar)):
 			if self.isWandering:
-				path = self.astar.findPath((int(self.pos.x/WALLSIZE),int(self.pos.y/WALLSIZE)),(int(playerPos.x/WALLSIZE),int(playerPos.y/WALLSIZE)),self.canMoveTo, self.isDisliked)
+				path = self.astar.findPath((int(self.pos.x/WALLSIZE),int(self.pos.y/WALLSIZE)),(int(playerPos.x/WALLSIZE),int(playerPos.y/WALLSIZE)), MAP)
 				if path != None:
 					self.path = path
 					self.followPath(True)
@@ -453,7 +456,8 @@ class EpicFace(Enemy):
 		
 class TrollFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,50), 100, 7, 20, 3, 1900, 0.2,4)
+		Enemy.__init__(self,x,y,Circ(x,y,45), 100, 7, 20, 3, 1900, 0.2,4)
+		print self.radius
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -602,28 +606,30 @@ class GUI:
 #Level Up! class
 class Level:
 	def __init__(self):
-		self.walls = readLevelFile()
+		self.walls, self.MAP = readLevelFile()
 		self.enemies = []
 		self.proj = []
-		self.enemySpawnRate = 700
+		self.enemySpawnRate = 700 #number of seconds between spawns
 
 	def handleObjects(self,player,cam):	
 		
+		#spawning enemies
 		if FRAMECOUNT % self.enemySpawnRate == 0:
-			ranPosX = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
-			ranPosY = WALLSIZE*2 + random()* WALLSIZE * (MAPSIZE-3)
+			ranPosX = WALLSIZE*2 + random()* WALLSIZE * (len(self.MAP)-3)
+			ranPosY = WALLSIZE*2 + random()* WALLSIZE * (len(self.MAP[0])-3)
 			
 			randomEnemy = random()
 			
-			if randomEnemy < 0.3:
+			'''if randomEnemy < 0.3:
 				self.enemies.append(EpicFace(ranPosX,ranPosY))
 			elif randomEnemy < 0.6:
 				self.enemies.append(CloudMan(ranPosX,ranPosY))
 			else:
-				self.enemies.append(TrollFace(ranPosX,ranPosY))
+				self.enemies.append(TrollFace(ranPosX,ranPosY))'''
 
 			self.enemySpawnRate = 1+int(random() * 500)
-
+		
+		#update projectiles (letters) 
 		for i in range(len(self.proj)-1, -1, -1):
 			self.proj[i].move()
 			if self.proj[i].checkIfOut(cam):
@@ -633,11 +639,12 @@ class Level:
 					if self.proj[i].checkIfCollide(wall.hit_box):
 						del self.proj[i]
 						break
-
+		
+		#update enemies
 		for i in range(len(self.enemies)-1, -1, -1):
-			self.enemies[i].update(player.pos)
+			self.enemies[i].update(player.pos, self.MAP)
 			if self.enemies[i].resolveCollision(player) and player.invulnTimer == 0:
-				player.health -= self.enemies[i].minAttackDamage+random()*(self.enemies[i].maxAttackDamage-self.enemies[i].minAttackDamage)
+				player.health -= self.enemies[i].minAttackDamage+random()*(self.enemies[i].maxAttackDamage - self.enemies[i].minAttackDamage)
 				self.enemies[i].attackTimer = 0
 				self.enemies[i].isCirclingTimer = 60
 				player.invulnTimer = 60
@@ -651,10 +658,12 @@ class Level:
 			if self.enemies[i].health <= 0:
 				del self.enemies[i]
 				
+		#stop enemies from overlapping
 		for index, enemy1 in enumerate(self.enemies[:-1]):
 			for enemy2 in self.enemies[index+1:]:
 				enemy1.resolveCollision(enemy2)
 		
+		#stop all entities from passing through walls
 		entities = self.enemies + [player]
 		for wall in self.walls:
 			for entity in entities:
@@ -668,9 +677,9 @@ class Level:
 			self.proj.append(Projectile(playerPos.x,playerPos.y,_mouseX+cam.x,_mouseY+cam.y,mail))
 
 	def drawLevel(self,cam):
-		for i in range(0,9):
-			for j in range(0,9):
-				drawImage(floor, (j*backgroundWidth)-cam.x, (i*backgroundHeight)-cam.y, backgroundWidth,backgroundHeight)
+		#for i in range(0,9):
+		#	for j in range(0,9):
+		#		drawImage(floor, (j*backgroundWidth)-cam.x, (i*backgroundHeight)-cam.y, backgroundWidth,backgroundHeight)
 				
 		for wall in self.walls:
 			wall.draw(cam)
@@ -832,5 +841,6 @@ while True:
 			currentWindow = MENUS[updateReport]
 	else:
 		currentWindow.draw()
+		drawString(0,0,str(_mouseX/WALLSIZE)+ " " +str(_mouseY/WALLSIZE))
 				
 			
