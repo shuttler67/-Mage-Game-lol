@@ -30,7 +30,7 @@ UP    = "up"
 DOWN  = "down"
 NIL = 'nil'
 
-MAXSPEED = 2.7
+MAXSPEED = 0.39
 MANSIZE = 60
 CAMERASLACKX=250/5
 CAMERASLACKY=200/5
@@ -122,11 +122,12 @@ class Entity:
 		self.mass = 0.0
 		self.invMass = 0.0
 
-	def __init__(self, x, y, hit_box, restitution = 0.2, density = 1, isDynamic = True):
+	def __init__(self, x, y, hit_box, restitution = 0.2, friction = 1, density = 1, isDynamic = True):
 		self.pos = Vect(x,y)
 		self.speed = Vect(0,0.0)
 		self.hit_box = hit_box
 		self.restitution = restitution
+		self.friction = friction
 		self.directions = []
 		self.netForce = Vect(0.0,0.0)
 		
@@ -152,7 +153,7 @@ class Entity:
 
 	def update(self):
 		self.speed += self.netForce * self.invMass
-		self.speed *= 1.001
+		self.speed *= self.friction
 		self.directions = []
 		if self.speed.x > 0.5:
 			self.directions.append(RIGHT)
@@ -229,7 +230,7 @@ class Entity:
 class Wall(Entity):
 	def __init__(self,x1,y1,x2,y2): 
 		hit_box = Rect(x2 - (x2 - x1)/2, y2 - (y2 - y1)/2, (x2 - x1), (y2 - y1)) #confusing change from min-max type of rect to xywh type of rect
-		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, 1, isDynamic = False)
+		Entity.__init__(self,hit_box.center.x, hit_box.center.y, hit_box, isDynamic = False)
 	def draw(self,cam):
 		useColourList(BLUE)
 		useColour(0,0,255)
@@ -252,13 +253,28 @@ class Projectile:
 		self.image = image
 		self.image.setRotation(int(random()*360))
 		self.pos = Vect(x,y)
-		self.size = 15 + random()*7
+		self.target = Vect(tx,ty)
+		self.size = 30 + random()*50 #17
+		
+		self.desired_velocity = Vect(*findTrajectory(self.pos.x,self.pos.y,tx,ty))
+		
+		temp_vel = Vect(self.desired_velocity.x, self.desired_velocity.y)
+		if int(round(random())) == 0:
+			temp_vel.Rotate(math.radians(30))
+		else:
+			temp_vel.Rotate(math.radians(-30))
+			
+		self.speed = temp_vel * 30
 
-		cosine, sine = findTrajectory(self.pos.x,self.pos.y,tx,ty)
-		self.trajectory = Vect(cosine, sine)
-		self.trajectory *= 16
+		
 	def move(self):
-		self.pos += self.trajectory
+		if self.target != self.speed:
+			self.desired_velocity = Vect(*findTrajectory(self.pos.x,self.pos.y,self.target.x,self.target.y))
+			self.desired_velocity *= 30
+			steering = self.desired_velocity - self.speed
+			steering *= 0.4
+			self.speed += steering
+			self.pos += self.speed
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -272,17 +288,38 @@ class Projectile:
 		
 	def checkIfCollide(self,rect_or_circ):
 		if isinstance(rect_or_circ, Rect):
-			return bool(CIRCvsAABB(Circ(self.pos.x,self.pos.y,self.size), rect_or_circ))
+			return bool(CIRCvsAABB(Circ(self.pos.x,self.pos.y,self.size/5), rect_or_circ))
 		else:
-			return bool(CIRCvsCIRC(Circ(self.pos.x,self.pos.y,self.size), rect_or_circ))
+			return bool(CIRCvsCIRC(Circ(self.pos.x,self.pos.y,self.size/5), rect_or_circ))
 #Projectile class
 
 		
 #Enemies
 class Enemy(Entity):
+
+	class FSM:
+		class State:
+			def update():
+				pass
+			def shouldActivate():
+				return False
+			def isFinished():
+				return True
+			def setReturnValue():
+				pass
+				
+		def __init__(self):
+			self.currentState_stack = []
+			self.allStates = {}
+			
+		def newState(self, update_function, activate_function):
+			pass
+		def update(self,):
+			pass
+			
 	def __init__(self, x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density = 1):
 		#initialise Entity part of Enemy
-		Entity.__init__(self,x,y,hit_box, knockback, density)
+		Entity.__init__(self,x,y,hit_box, knockback, 1, density)
 		
 		#basic setup
 		self.maxHealth = maxHealth-10+random()*10
@@ -290,7 +327,7 @@ class Enemy(Entity):
 		self.minAttackDamage = minAttackDamage
 		self.maxAttackDamage = maxAttackDamage
 		self.radar = radar
-		self.moveSpeed = speed
+		self.maxSpeed = speed
 		
 		#astar setup
 		self.astar = AStar(self.radius, self.canMoveTo, self.isDisliked)
@@ -341,7 +378,7 @@ class Enemy(Entity):
 				node = self.path.pop()
 				self.currentNode = (node[0] * WALLSIZE + WALLSIZE/2 , node[1] * WALLSIZE + WALLSIZE/2)
 				
-			elif CIRCvsCIRC(Circ(self.currentNode[0],self.currentNode[1],0),Circ(self.pos.x,self.pos.y,self.radius/2)): #If player is within node boundary
+			elif CIRCvsCIRC(Circ(self.currentNode[0],self.currentNode[1],30),Circ(self.pos.x,self.pos.y,self.radius/2)): #If player is within node boundary
 
 				node = self.path.pop()
 				self.currentNode = (node[0] * WALLSIZE + WALLSIZE/2 , node[1] * WALLSIZE + WALLSIZE/2)
@@ -391,8 +428,7 @@ class Enemy(Entity):
 					self.walkAway(playerPos)
 				else:
 					move = Vect(*findTrajectory(self.pos.x,self.pos.y, playerPos.x, playerPos.y))
-					move *= self.moveSpeed
-					move *= self.mass
+					move *= self.maxSpeed
 					move.Rotate(math.radians(90.0))
 					self.applyForce(move)
 					
@@ -405,14 +441,23 @@ class Enemy(Entity):
 		Entity.update(self)
 
 	def walkTowards(self,posTuple):
-		#print posTuple
 		cos, sin = findTrajectory(self.pos.x,self.pos.y,*posTuple)
-		self.applyForce(Vect(cos * self.moveSpeed * self.mass, sin * self.moveSpeed * self.mass))
+		
+		desired_velocity = Vect(cos, sin)
+		desired_velocity *=  self.maxSpeed
+		steering = desired_velocity - self.speed
+		
+		self.speed += steering
 	
 	def walkAway(self,posVect):
 		#print posTuple
 		cos, sin = findTrajectory(posVect.x,posVect.y,self.pos.x,self.pos.y)
-		self.applyForce(Vect(cos * self.moveSpeed * self.mass, sin * self.moveSpeed * self.mass))
+		
+		desired_velocity = Vect(cos, sin)
+		desired_velocity *= self.maxSpeed
+		steering = desired_velocity - self.speed
+		
+		self.speed += steering
 	
 	def draw(self,cam):
 			
@@ -447,7 +492,7 @@ class Enemy(Entity):
 # x, y, hit_box, maxHealth, minAttackDamage, maxAttackDamage, knockback, radar, speed, density
 class EpicFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,15), 40, 2, 5, 2, 1600, 0.29,2)
+		Enemy.__init__(self,x,y,Circ(x,y,15), 40, 2, 5, 2, 1600, 2,2)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -456,7 +501,7 @@ class EpicFace(Enemy):
 		
 class TrollFace(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,45), 100, 7, 20, 3, 1900, 0.2,4)
+		Enemy.__init__(self,x,y,Circ(x,y,45), 100, 7, 20, 3, 1900, 1,4)
 		print self.radius
 
 	def draw(self,cam):
@@ -467,7 +512,7 @@ class TrollFace(Enemy):
 		
 class CloudMan(Enemy):
 	def __init__(self,x,y):
-		Enemy.__init__(self,x,y,Circ(x,y,44), 100, 7, 20, 3, 1900, 0.35,2)
+		Enemy.__init__(self,x,y,Circ(x,y,44), 100, 7, 20, 3, 1900, 1,2)
 
 	def draw(self,cam):
 		cam_x, cam_y = cam.getCameraView(self.pos)
@@ -480,29 +525,29 @@ class CloudMan(Enemy):
 #PLAY WITH MEEEEE class
 class Player(Entity):
 	def __init__(self,x,y):
-		Entity.__init__(self,x,y, Rect(x,y, MANSIZE/3, MANSIZE),100,1)#Circ(0.0,0.0,MANSIZE),100,1)#
-		self.inAttack = False
+		Entity.__init__(self,x,y, Rect(x,y, MANSIZE/3, MANSIZE),100, 0.9,1)#Circ(0.0,0.0,MANSIZE),100,1)#
 		self.maxHealth = 200.0
 		self.health = 200.0
 		
 		self.invulnTimer = 0
+		self.triggerTimer = 0
 		
 		self.maxMana = 100.0
 		self.mana = self.maxMana
 		self.isMoving = False
 		self.facing = RIGHT
 		
-	def update(self):
+	def update(self, cam):
 		if self.invulnTimer != 0:
 			self.invulnTimer -= 1
+			
+		if self.triggerTimer != 0:
+			self.triggerTimer -= 1
 
 		accel = Vect(0.0,0.0)
 
-		if self.inAttack:
-			movement = 0.1
-		else:
-			movement = 0.35
-				
+		movement = MAXSPEED
+		
 		if KEYSTATES['w']:
 			accel.y += movement
 		if KEYSTATES['a']:
@@ -520,6 +565,14 @@ class Player(Entity):
 		self.isMoving = bool(self.directions)
 
 		self.applyForce(accel)
+		
+		if KEYSTATES['SPACE'] and not PREV_KEYSTATES['SPACE']:
+			mx,my = cam.getWorldView(Vect(_mouseX,_mouseY))
+			self.speed = Vect(*findTrajectory(self.pos.x, self.pos.y,mx,my)) * 20
+		
+		if not KEYSTATES['SPACE'] and PREV_KEYSTATES['SPACE']:
+			self.speed *= 0.1
+			
 		Entity.update(self)
 		
 	def draw(self,cam):
@@ -535,11 +588,6 @@ class Player(Entity):
 			mx,my = cam.getWorldView(Vect(_mouseX,_mouseY))
 			self.pos.Set(mx,my)
 
-		if self.inAttack:
-			if FRAMECOUNT%30<15:
-				image = charge1
-			else:
-				image = charge2
 		
 		elif self.isMoving:
 			if self.facing == RIGHT:
@@ -609,7 +657,7 @@ class Level:
 		self.walls, self.MAP = readLevelFile()
 		self.enemies = []
 		self.proj = []
-		self.enemySpawnRate = 700 #number of seconds between spawns
+		self.enemySpawnRate = 1 #number of seconds between spawns
 
 	def handleObjects(self,player,cam):	
 		
@@ -620,12 +668,12 @@ class Level:
 			
 			randomEnemy = random()
 			
-			'''if randomEnemy < 0.3:
+			if randomEnemy < 0.3:
 				self.enemies.append(EpicFace(ranPosX,ranPosY))
 			elif randomEnemy < 0.6:
 				self.enemies.append(CloudMan(ranPosX,ranPosY))
 			else:
-				self.enemies.append(TrollFace(ranPosX,ranPosY))'''
+				self.enemies.append(TrollFace(ranPosX,ranPosY))
 
 			self.enemySpawnRate = 1+int(random() * 500)
 		
@@ -637,7 +685,7 @@ class Level:
 			else:
 				for wall in self.walls:
 					if self.proj[i].checkIfCollide(wall.hit_box):
-						del self.proj[i]
+						#del self.proj[i]
 						break
 		
 		#update enemies
@@ -708,6 +756,7 @@ class Game:
 	def update(self):
 		firstMousedown = False
 		firstMouseup = False
+		overButtons = False
 			
 		if isLeftMouseDown() and not self.mousedown:
 			firstMousedown = True
@@ -727,9 +776,15 @@ class Game:
 				self.cam.pause = False
 			else:
 				return returnValue
+				
+		if isLeftMouseDown():
 			if not self.cam.pause:
-				self.currentLevel.spawnProjectile(overButtons,self.man.pos,self.cam)
-		
+				if self.man.triggerTimer == 0:
+					self.currentLevel.spawnProjectile(overButtons,self.man.pos,self.cam)
+					if random() < 0.3:
+						self.man.triggerTimer = int(random()*4+1)
+					else:
+						self.man.triggerTimer = int(random()*13+7)
 		if KEYSTATES['c']:
 			self.currentLevel.spawnProjectile(False,self.man.pos,self.cam)
 
@@ -738,7 +793,7 @@ class Game:
 		
 		if not self.cam.pause:
 			self.man.inAttack = self.mousedown
-			self.man.update()
+			self.man.update(self.cam)
 			self.currentLevel.handleObjects(self.man,self.cam)
 
 		self.GUI.update(self.cam.pause)
